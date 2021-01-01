@@ -94,271 +94,6 @@ function A9(fun, a, b, c, d, e, f, g, h, i) {
 console.warn('Compiled in DEV mode. Follow the advice at https://elm-lang.org/0.19.1/optimize for better performance and smaller assets.');
 
 
-// EQUALITY
-
-function _Utils_eq(x, y)
-{
-	for (
-		var pair, stack = [], isEqual = _Utils_eqHelp(x, y, 0, stack);
-		isEqual && (pair = stack.pop());
-		isEqual = _Utils_eqHelp(pair.a, pair.b, 0, stack)
-		)
-	{}
-
-	return isEqual;
-}
-
-function _Utils_eqHelp(x, y, depth, stack)
-{
-	if (x === y)
-	{
-		return true;
-	}
-
-	if (typeof x !== 'object' || x === null || y === null)
-	{
-		typeof x === 'function' && _Debug_crash(5);
-		return false;
-	}
-
-	if (depth > 100)
-	{
-		stack.push(_Utils_Tuple2(x,y));
-		return true;
-	}
-
-	/**/
-	if (x.$ === 'Set_elm_builtin')
-	{
-		x = $elm$core$Set$toList(x);
-		y = $elm$core$Set$toList(y);
-	}
-	if (x.$ === 'RBNode_elm_builtin' || x.$ === 'RBEmpty_elm_builtin')
-	{
-		x = $elm$core$Dict$toList(x);
-		y = $elm$core$Dict$toList(y);
-	}
-	//*/
-
-	/**_UNUSED/
-	if (x.$ < 0)
-	{
-		x = $elm$core$Dict$toList(x);
-		y = $elm$core$Dict$toList(y);
-	}
-	//*/
-
-	for (var key in x)
-	{
-		if (!_Utils_eqHelp(x[key], y[key], depth + 1, stack))
-		{
-			return false;
-		}
-	}
-	return true;
-}
-
-var _Utils_equal = F2(_Utils_eq);
-var _Utils_notEqual = F2(function(a, b) { return !_Utils_eq(a,b); });
-
-
-
-// COMPARISONS
-
-// Code in Generate/JavaScript.hs, Basics.js, and List.js depends on
-// the particular integer values assigned to LT, EQ, and GT.
-
-function _Utils_cmp(x, y, ord)
-{
-	if (typeof x !== 'object')
-	{
-		return x === y ? /*EQ*/ 0 : x < y ? /*LT*/ -1 : /*GT*/ 1;
-	}
-
-	/**/
-	if (x instanceof String)
-	{
-		var a = x.valueOf();
-		var b = y.valueOf();
-		return a === b ? 0 : a < b ? -1 : 1;
-	}
-	//*/
-
-	/**_UNUSED/
-	if (typeof x.$ === 'undefined')
-	//*/
-	/**/
-	if (x.$[0] === '#')
-	//*/
-	{
-		return (ord = _Utils_cmp(x.a, y.a))
-			? ord
-			: (ord = _Utils_cmp(x.b, y.b))
-				? ord
-				: _Utils_cmp(x.c, y.c);
-	}
-
-	// traverse conses until end of a list or a mismatch
-	for (; x.b && y.b && !(ord = _Utils_cmp(x.a, y.a)); x = x.b, y = y.b) {} // WHILE_CONSES
-	return ord || (x.b ? /*GT*/ 1 : y.b ? /*LT*/ -1 : /*EQ*/ 0);
-}
-
-var _Utils_lt = F2(function(a, b) { return _Utils_cmp(a, b) < 0; });
-var _Utils_le = F2(function(a, b) { return _Utils_cmp(a, b) < 1; });
-var _Utils_gt = F2(function(a, b) { return _Utils_cmp(a, b) > 0; });
-var _Utils_ge = F2(function(a, b) { return _Utils_cmp(a, b) >= 0; });
-
-var _Utils_compare = F2(function(x, y)
-{
-	var n = _Utils_cmp(x, y);
-	return n < 0 ? $elm$core$Basics$LT : n ? $elm$core$Basics$GT : $elm$core$Basics$EQ;
-});
-
-
-// COMMON VALUES
-
-var _Utils_Tuple0_UNUSED = 0;
-var _Utils_Tuple0 = { $: '#0' };
-
-function _Utils_Tuple2_UNUSED(a, b) { return { a: a, b: b }; }
-function _Utils_Tuple2(a, b) { return { $: '#2', a: a, b: b }; }
-
-function _Utils_Tuple3_UNUSED(a, b, c) { return { a: a, b: b, c: c }; }
-function _Utils_Tuple3(a, b, c) { return { $: '#3', a: a, b: b, c: c }; }
-
-function _Utils_chr_UNUSED(c) { return c; }
-function _Utils_chr(c) { return new String(c); }
-
-
-// RECORDS
-
-function _Utils_update(oldRecord, updatedFields)
-{
-	var newRecord = {};
-
-	for (var key in oldRecord)
-	{
-		newRecord[key] = oldRecord[key];
-	}
-
-	for (var key in updatedFields)
-	{
-		newRecord[key] = updatedFields[key];
-	}
-
-	return newRecord;
-}
-
-
-// APPEND
-
-var _Utils_append = F2(_Utils_ap);
-
-function _Utils_ap(xs, ys)
-{
-	// append Strings
-	if (typeof xs === 'string')
-	{
-		return xs + ys;
-	}
-
-	// append Lists
-	if (!xs.b)
-	{
-		return ys;
-	}
-	var root = _List_Cons(xs.a, ys);
-	xs = xs.b
-	for (var curr = root; xs.b; xs = xs.b) // WHILE_CONS
-	{
-		curr = curr.b = _List_Cons(xs.a, ys);
-	}
-	return root;
-}
-
-
-
-var _List_Nil_UNUSED = { $: 0 };
-var _List_Nil = { $: '[]' };
-
-function _List_Cons_UNUSED(hd, tl) { return { $: 1, a: hd, b: tl }; }
-function _List_Cons(hd, tl) { return { $: '::', a: hd, b: tl }; }
-
-
-var _List_cons = F2(_List_Cons);
-
-function _List_fromArray(arr)
-{
-	var out = _List_Nil;
-	for (var i = arr.length; i--; )
-	{
-		out = _List_Cons(arr[i], out);
-	}
-	return out;
-}
-
-function _List_toArray(xs)
-{
-	for (var out = []; xs.b; xs = xs.b) // WHILE_CONS
-	{
-		out.push(xs.a);
-	}
-	return out;
-}
-
-var _List_map2 = F3(function(f, xs, ys)
-{
-	for (var arr = []; xs.b && ys.b; xs = xs.b, ys = ys.b) // WHILE_CONSES
-	{
-		arr.push(A2(f, xs.a, ys.a));
-	}
-	return _List_fromArray(arr);
-});
-
-var _List_map3 = F4(function(f, xs, ys, zs)
-{
-	for (var arr = []; xs.b && ys.b && zs.b; xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
-	{
-		arr.push(A3(f, xs.a, ys.a, zs.a));
-	}
-	return _List_fromArray(arr);
-});
-
-var _List_map4 = F5(function(f, ws, xs, ys, zs)
-{
-	for (var arr = []; ws.b && xs.b && ys.b && zs.b; ws = ws.b, xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
-	{
-		arr.push(A4(f, ws.a, xs.a, ys.a, zs.a));
-	}
-	return _List_fromArray(arr);
-});
-
-var _List_map5 = F6(function(f, vs, ws, xs, ys, zs)
-{
-	for (var arr = []; vs.b && ws.b && xs.b && ys.b && zs.b; vs = vs.b, ws = ws.b, xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
-	{
-		arr.push(A5(f, vs.a, ws.a, xs.a, ys.a, zs.a));
-	}
-	return _List_fromArray(arr);
-});
-
-var _List_sortBy = F2(function(f, xs)
-{
-	return _List_fromArray(_List_toArray(xs).sort(function(a, b) {
-		return _Utils_cmp(f(a), f(b));
-	}));
-});
-
-var _List_sortWith = F2(function(f, xs)
-{
-	return _List_fromArray(_List_toArray(xs).sort(function(a, b) {
-		var ord = A2(f, a, b);
-		return ord === $elm$core$Basics$EQ ? 0 : ord === $elm$core$Basics$LT ? -1 : 1;
-	}));
-});
-
-
-
 var _JsArray_empty = [];
 
 function _JsArray_singleton(value)
@@ -804,6 +539,271 @@ function _Debug_regionToString(region)
 	}
 	return 'on lines ' + region.start.line + ' through ' + region.end.line;
 }
+
+
+
+// EQUALITY
+
+function _Utils_eq(x, y)
+{
+	for (
+		var pair, stack = [], isEqual = _Utils_eqHelp(x, y, 0, stack);
+		isEqual && (pair = stack.pop());
+		isEqual = _Utils_eqHelp(pair.a, pair.b, 0, stack)
+		)
+	{}
+
+	return isEqual;
+}
+
+function _Utils_eqHelp(x, y, depth, stack)
+{
+	if (x === y)
+	{
+		return true;
+	}
+
+	if (typeof x !== 'object' || x === null || y === null)
+	{
+		typeof x === 'function' && _Debug_crash(5);
+		return false;
+	}
+
+	if (depth > 100)
+	{
+		stack.push(_Utils_Tuple2(x,y));
+		return true;
+	}
+
+	/**/
+	if (x.$ === 'Set_elm_builtin')
+	{
+		x = $elm$core$Set$toList(x);
+		y = $elm$core$Set$toList(y);
+	}
+	if (x.$ === 'RBNode_elm_builtin' || x.$ === 'RBEmpty_elm_builtin')
+	{
+		x = $elm$core$Dict$toList(x);
+		y = $elm$core$Dict$toList(y);
+	}
+	//*/
+
+	/**_UNUSED/
+	if (x.$ < 0)
+	{
+		x = $elm$core$Dict$toList(x);
+		y = $elm$core$Dict$toList(y);
+	}
+	//*/
+
+	for (var key in x)
+	{
+		if (!_Utils_eqHelp(x[key], y[key], depth + 1, stack))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+var _Utils_equal = F2(_Utils_eq);
+var _Utils_notEqual = F2(function(a, b) { return !_Utils_eq(a,b); });
+
+
+
+// COMPARISONS
+
+// Code in Generate/JavaScript.hs, Basics.js, and List.js depends on
+// the particular integer values assigned to LT, EQ, and GT.
+
+function _Utils_cmp(x, y, ord)
+{
+	if (typeof x !== 'object')
+	{
+		return x === y ? /*EQ*/ 0 : x < y ? /*LT*/ -1 : /*GT*/ 1;
+	}
+
+	/**/
+	if (x instanceof String)
+	{
+		var a = x.valueOf();
+		var b = y.valueOf();
+		return a === b ? 0 : a < b ? -1 : 1;
+	}
+	//*/
+
+	/**_UNUSED/
+	if (typeof x.$ === 'undefined')
+	//*/
+	/**/
+	if (x.$[0] === '#')
+	//*/
+	{
+		return (ord = _Utils_cmp(x.a, y.a))
+			? ord
+			: (ord = _Utils_cmp(x.b, y.b))
+				? ord
+				: _Utils_cmp(x.c, y.c);
+	}
+
+	// traverse conses until end of a list or a mismatch
+	for (; x.b && y.b && !(ord = _Utils_cmp(x.a, y.a)); x = x.b, y = y.b) {} // WHILE_CONSES
+	return ord || (x.b ? /*GT*/ 1 : y.b ? /*LT*/ -1 : /*EQ*/ 0);
+}
+
+var _Utils_lt = F2(function(a, b) { return _Utils_cmp(a, b) < 0; });
+var _Utils_le = F2(function(a, b) { return _Utils_cmp(a, b) < 1; });
+var _Utils_gt = F2(function(a, b) { return _Utils_cmp(a, b) > 0; });
+var _Utils_ge = F2(function(a, b) { return _Utils_cmp(a, b) >= 0; });
+
+var _Utils_compare = F2(function(x, y)
+{
+	var n = _Utils_cmp(x, y);
+	return n < 0 ? $elm$core$Basics$LT : n ? $elm$core$Basics$GT : $elm$core$Basics$EQ;
+});
+
+
+// COMMON VALUES
+
+var _Utils_Tuple0_UNUSED = 0;
+var _Utils_Tuple0 = { $: '#0' };
+
+function _Utils_Tuple2_UNUSED(a, b) { return { a: a, b: b }; }
+function _Utils_Tuple2(a, b) { return { $: '#2', a: a, b: b }; }
+
+function _Utils_Tuple3_UNUSED(a, b, c) { return { a: a, b: b, c: c }; }
+function _Utils_Tuple3(a, b, c) { return { $: '#3', a: a, b: b, c: c }; }
+
+function _Utils_chr_UNUSED(c) { return c; }
+function _Utils_chr(c) { return new String(c); }
+
+
+// RECORDS
+
+function _Utils_update(oldRecord, updatedFields)
+{
+	var newRecord = {};
+
+	for (var key in oldRecord)
+	{
+		newRecord[key] = oldRecord[key];
+	}
+
+	for (var key in updatedFields)
+	{
+		newRecord[key] = updatedFields[key];
+	}
+
+	return newRecord;
+}
+
+
+// APPEND
+
+var _Utils_append = F2(_Utils_ap);
+
+function _Utils_ap(xs, ys)
+{
+	// append Strings
+	if (typeof xs === 'string')
+	{
+		return xs + ys;
+	}
+
+	// append Lists
+	if (!xs.b)
+	{
+		return ys;
+	}
+	var root = _List_Cons(xs.a, ys);
+	xs = xs.b
+	for (var curr = root; xs.b; xs = xs.b) // WHILE_CONS
+	{
+		curr = curr.b = _List_Cons(xs.a, ys);
+	}
+	return root;
+}
+
+
+
+var _List_Nil_UNUSED = { $: 0 };
+var _List_Nil = { $: '[]' };
+
+function _List_Cons_UNUSED(hd, tl) { return { $: 1, a: hd, b: tl }; }
+function _List_Cons(hd, tl) { return { $: '::', a: hd, b: tl }; }
+
+
+var _List_cons = F2(_List_Cons);
+
+function _List_fromArray(arr)
+{
+	var out = _List_Nil;
+	for (var i = arr.length; i--; )
+	{
+		out = _List_Cons(arr[i], out);
+	}
+	return out;
+}
+
+function _List_toArray(xs)
+{
+	for (var out = []; xs.b; xs = xs.b) // WHILE_CONS
+	{
+		out.push(xs.a);
+	}
+	return out;
+}
+
+var _List_map2 = F3(function(f, xs, ys)
+{
+	for (var arr = []; xs.b && ys.b; xs = xs.b, ys = ys.b) // WHILE_CONSES
+	{
+		arr.push(A2(f, xs.a, ys.a));
+	}
+	return _List_fromArray(arr);
+});
+
+var _List_map3 = F4(function(f, xs, ys, zs)
+{
+	for (var arr = []; xs.b && ys.b && zs.b; xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
+	{
+		arr.push(A3(f, xs.a, ys.a, zs.a));
+	}
+	return _List_fromArray(arr);
+});
+
+var _List_map4 = F5(function(f, ws, xs, ys, zs)
+{
+	for (var arr = []; ws.b && xs.b && ys.b && zs.b; ws = ws.b, xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
+	{
+		arr.push(A4(f, ws.a, xs.a, ys.a, zs.a));
+	}
+	return _List_fromArray(arr);
+});
+
+var _List_map5 = F6(function(f, vs, ws, xs, ys, zs)
+{
+	for (var arr = []; vs.b && ws.b && xs.b && ys.b && zs.b; vs = vs.b, ws = ws.b, xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
+	{
+		arr.push(A5(f, vs.a, ws.a, xs.a, ys.a, zs.a));
+	}
+	return _List_fromArray(arr);
+});
+
+var _List_sortBy = F2(function(f, xs)
+{
+	return _List_fromArray(_List_toArray(xs).sort(function(a, b) {
+		return _Utils_cmp(f(a), f(b));
+	}));
+});
+
+var _List_sortWith = F2(function(f, xs)
+{
+	return _List_fromArray(_List_toArray(xs).sort(function(a, b) {
+		var ord = A2(f, a, b);
+		return ord === $elm$core$Basics$EQ ? 0 : ord === $elm$core$Basics$LT ? -1 : 1;
+	}));
+});
 
 
 
@@ -4369,10 +4369,36 @@ function _Browser_load(url)
 		}
 	}));
 }
-var $elm$core$Basics$EQ = {$: 'EQ'};
-var $elm$core$Basics$GT = {$: 'GT'};
-var $elm$core$Basics$LT = {$: 'LT'};
+var $elm$core$Basics$False = {$: 'False'};
+var $elm$core$Maybe$Just = function (a) {
+	return {$: 'Just', a: a};
+};
+var $elm$core$Maybe$Nothing = {$: 'Nothing'};
 var $elm$core$List$cons = _List_cons;
+var $elm$core$Elm$JsArray$foldr = _JsArray_foldr;
+var $elm$core$Array$foldr = F3(
+	function (func, baseCase, _v0) {
+		var tree = _v0.c;
+		var tail = _v0.d;
+		var helper = F2(
+			function (node, acc) {
+				if (node.$ === 'SubTree') {
+					var subTree = node.a;
+					return A3($elm$core$Elm$JsArray$foldr, helper, acc, subTree);
+				} else {
+					var values = node.a;
+					return A3($elm$core$Elm$JsArray$foldr, func, acc, values);
+				}
+			});
+		return A3(
+			$elm$core$Elm$JsArray$foldr,
+			helper,
+			A3($elm$core$Elm$JsArray$foldr, func, baseCase, tail),
+			tree);
+	});
+var $elm$core$Array$toList = function (array) {
+	return A3($elm$core$Array$foldr, $elm$core$List$cons, _List_Nil, array);
+};
 var $elm$core$Dict$foldr = F3(
 	function (func, acc, t) {
 		foldr:
@@ -4425,30 +4451,38 @@ var $elm$core$Set$toList = function (_v0) {
 	var dict = _v0.a;
 	return $elm$core$Dict$keys(dict);
 };
-var $elm$core$Elm$JsArray$foldr = _JsArray_foldr;
-var $elm$core$Array$foldr = F3(
-	function (func, baseCase, _v0) {
-		var tree = _v0.c;
-		var tail = _v0.d;
-		var helper = F2(
-			function (node, acc) {
-				if (node.$ === 'SubTree') {
-					var subTree = node.a;
-					return A3($elm$core$Elm$JsArray$foldr, helper, acc, subTree);
-				} else {
-					var values = node.a;
-					return A3($elm$core$Elm$JsArray$foldr, func, acc, values);
-				}
-			});
-		return A3(
-			$elm$core$Elm$JsArray$foldr,
-			helper,
-			A3($elm$core$Elm$JsArray$foldr, func, baseCase, tail),
-			tree);
-	});
-var $elm$core$Array$toList = function (array) {
-	return A3($elm$core$Array$foldr, $elm$core$List$cons, _List_Nil, array);
-};
+var $elm$core$Basics$EQ = {$: 'EQ'};
+var $elm$core$Basics$GT = {$: 'GT'};
+var $elm$core$Basics$LT = {$: 'LT'};
+var $author$project$Example$Done = {$: 'Done'};
+var $author$project$Example$Error = {$: 'Error'};
+var $author$project$Example$Pending = {$: 'Pending'};
+var $author$project$Example$Submitted = {$: 'Submitted'};
+var $author$project$Example$myVideos = _List_fromArray(
+	[
+		{
+		id: 'id1',
+		progress: $elm$core$Maybe$Just(0.2),
+		status: $author$project$Example$Pending,
+		title: $elm$core$Maybe$Just('Video1'),
+		url: 'www.miurl.es'
+	},
+		{
+		id: 'id2',
+		progress: $elm$core$Maybe$Nothing,
+		status: $author$project$Example$Error,
+		title: $elm$core$Maybe$Just('Video2'),
+		url: 'www.miurl2.es'
+	},
+		{
+		id: 'id3',
+		progress: $elm$core$Maybe$Just(1),
+		status: $author$project$Example$Done,
+		title: $elm$core$Maybe$Just('Video3'),
+		url: 'www.miurl3.es'
+	},
+		{id: 'id4', progress: $elm$core$Maybe$Nothing, status: $author$project$Example$Submitted, title: $elm$core$Maybe$Nothing, url: 'www.miurl4.es'}
+	]);
 var $elm$core$Result$Err = function (a) {
 	return {$: 'Err', a: a};
 };
@@ -4470,12 +4504,7 @@ var $elm$core$Result$Ok = function (a) {
 var $elm$json$Json$Decode$OneOf = function (a) {
 	return {$: 'OneOf', a: a};
 };
-var $elm$core$Basics$False = {$: 'False'};
 var $elm$core$Basics$add = _Basics_add;
-var $elm$core$Maybe$Just = function (a) {
-	return {$: 'Just', a: a};
-};
-var $elm$core$Maybe$Nothing = {$: 'Nothing'};
 var $elm$core$String$all = _String_all;
 var $elm$core$Basics$and = _Basics_and;
 var $elm$core$Basics$append = _Utils_append;
@@ -5181,15 +5210,41 @@ var $elm$browser$Browser$sandbox = function (impl) {
 };
 var $author$project$Example$update = F2(
 	function (msg, model) {
-		if (msg.$ === 'UpdateURL') {
-			var u = msg.a;
-			return _Utils_update(
-				model,
-				{url: u});
-		} else {
-			return _Utils_update(
-				model,
-				{url: ''});
+		switch (msg.$) {
+			case 'UpdateURL':
+				var u = msg.a;
+				return _Utils_update(
+					model,
+					{url: u});
+			case 'DownloadVideo':
+				return _Utils_update(
+					model,
+					{url: ''});
+			case 'DeleteVideo':
+				var video = msg.a;
+				return _Utils_update(
+					model,
+					{url: 'deleted video'});
+			case 'ViewStdOut':
+				var video = msg.a;
+				return _Utils_update(
+					model,
+					{
+						showingModal: true,
+						videoInModal: $elm$core$Maybe$Just(video)
+					});
+			case 'ViewStdErr':
+				var video = msg.a;
+				return _Utils_update(
+					model,
+					{
+						showingModal: true,
+						videoInModal: $elm$core$Maybe$Just(video)
+					});
+			default:
+				return _Utils_update(
+					model,
+					{showingModal: false, videoInModal: $elm$core$Maybe$Nothing});
 		}
 	});
 var $elm$json$Json$Encode$string = _Json_wrap;
@@ -5330,7 +5385,7 @@ var $author$project$Example$videoFooter = A2(
 									$elm$html$Html$a,
 									_List_fromArray(
 										[
-											$elm$html$Html$Attributes$href('https://github.com/')
+											$elm$html$Html$Attributes$href('https://github.com/laetitiae')
 										]),
 									_List_fromArray(
 										[
@@ -6554,75 +6609,6 @@ var $author$project$Example$videoHeader = function (model) {
 			]));
 };
 var $surprisetalk$elm_bulma$Bulma$Layout$NotSpaced = {$: 'NotSpaced'};
-var $elm$html$Html$Attributes$max = $elm$html$Html$Attributes$stringProperty('max');
-var $surprisetalk$elm_bulma$Bulma$Classes$progress = $elm$html$Html$Attributes$class('progress');
-var $surprisetalk$elm_bulma$Bulma$Elements$progress = function (_v0) {
-	var size = _v0.size;
-	var color = _v0.color;
-	return A2(
-		$surprisetalk$elm_bulma$Helpers$node,
-		'progress',
-		_List_fromArray(
-			[
-				$surprisetalk$elm_bulma$Bulma$Classes$progress,
-				function () {
-				switch (size.$) {
-					case 'Small':
-						return $surprisetalk$elm_bulma$Bulma$Classes$isSmall;
-					case 'Standard':
-						return $surprisetalk$elm_bulma$Bulma$Classes$none;
-					case 'Medium':
-						return $surprisetalk$elm_bulma$Bulma$Classes$isMedium;
-					default:
-						return $surprisetalk$elm_bulma$Bulma$Classes$isLarge;
-				}
-			}(),
-				function () {
-				switch (color.$) {
-					case 'Default':
-						return $surprisetalk$elm_bulma$Bulma$Classes$none;
-					case 'White':
-						return $surprisetalk$elm_bulma$Bulma$Classes$isWhite;
-					case 'Light':
-						return $surprisetalk$elm_bulma$Bulma$Classes$isLight;
-					case 'Dark':
-						return $surprisetalk$elm_bulma$Bulma$Classes$isDark;
-					case 'Black':
-						return $surprisetalk$elm_bulma$Bulma$Classes$isBlack;
-					case 'Primary':
-						return $surprisetalk$elm_bulma$Bulma$Classes$isPrimary;
-					case 'Info':
-						return $surprisetalk$elm_bulma$Bulma$Classes$isInfo;
-					case 'Success':
-						return $surprisetalk$elm_bulma$Bulma$Classes$isSuccess;
-					case 'Warning':
-						return $surprisetalk$elm_bulma$Bulma$Classes$isWarning;
-					case 'Danger':
-						return $surprisetalk$elm_bulma$Bulma$Classes$isDanger;
-					default:
-						return $surprisetalk$elm_bulma$Bulma$Classes$isLink;
-				}
-			}()
-			]));
-};
-var $elm$core$Basics$round = _Basics_round;
-var $surprisetalk$elm_bulma$Bulma$Elements$easyProgress = F3(
-	function (mods, attrs, val) {
-		return A3(
-			$surprisetalk$elm_bulma$Bulma$Elements$progress,
-			mods,
-			A2(
-				$elm$core$List$cons,
-				$elm$html$Html$Attributes$value(
-					$elm$core$String$fromInt(
-						$elm$core$Basics$round(val * 100))),
-				A2(
-					$elm$core$List$cons,
-					$elm$html$Html$Attributes$max('100'),
-					attrs)),
-			_List_Nil);
-	});
-var $surprisetalk$elm_bulma$Bulma$Elements$progressModifiers = {color: $surprisetalk$elm_bulma$Bulma$Modifiers$Default, size: $surprisetalk$elm_bulma$Bulma$Modifiers$Standard};
 var $surprisetalk$elm_bulma$Bulma$Classes$section = $elm$html$Html$Attributes$class('section');
 var $surprisetalk$elm_bulma$Bulma$Layout$section = function (spacing) {
 	return A2(
@@ -6701,7 +6687,6 @@ var $surprisetalk$elm_bulma$Bulma$Elements$table = function (_v0) {
 			]));
 };
 var $surprisetalk$elm_bulma$Bulma$Elements$tableBody = A2($surprisetalk$elm_bulma$Helpers$node, 'tbody', _List_Nil);
-var $surprisetalk$elm_bulma$Bulma$Elements$tableCell = A2($surprisetalk$elm_bulma$Helpers$node, 'td', _List_Nil);
 var $surprisetalk$elm_bulma$Bulma$Elements$tableCellHead = A2($surprisetalk$elm_bulma$Helpers$node, 'th', _List_Nil);
 var $surprisetalk$elm_bulma$Bulma$Elements$tableFoot = A2($surprisetalk$elm_bulma$Helpers$node, 'tfoot', _List_Nil);
 var $surprisetalk$elm_bulma$Bulma$Elements$tableHead = A2($surprisetalk$elm_bulma$Helpers$node, 'thead', _List_Nil);
@@ -6721,8 +6706,101 @@ var $surprisetalk$elm_bulma$Bulma$Elements$tableRow = function (highlighted) {
 			}()
 			]));
 };
-var $author$project$Example$videoList = function () {
-	var tableEntry = A3(
+var $author$project$Example$DeleteVideo = function (a) {
+	return {$: 'DeleteVideo', a: a};
+};
+var $author$project$Example$ViewStdErr = function (a) {
+	return {$: 'ViewStdErr', a: a};
+};
+var $author$project$Example$ViewStdOut = function (a) {
+	return {$: 'ViewStdOut', a: a};
+};
+var $elm$html$Html$Attributes$max = $elm$html$Html$Attributes$stringProperty('max');
+var $surprisetalk$elm_bulma$Bulma$Classes$progress = $elm$html$Html$Attributes$class('progress');
+var $surprisetalk$elm_bulma$Bulma$Elements$progress = function (_v0) {
+	var size = _v0.size;
+	var color = _v0.color;
+	return A2(
+		$surprisetalk$elm_bulma$Helpers$node,
+		'progress',
+		_List_fromArray(
+			[
+				$surprisetalk$elm_bulma$Bulma$Classes$progress,
+				function () {
+				switch (size.$) {
+					case 'Small':
+						return $surprisetalk$elm_bulma$Bulma$Classes$isSmall;
+					case 'Standard':
+						return $surprisetalk$elm_bulma$Bulma$Classes$none;
+					case 'Medium':
+						return $surprisetalk$elm_bulma$Bulma$Classes$isMedium;
+					default:
+						return $surprisetalk$elm_bulma$Bulma$Classes$isLarge;
+				}
+			}(),
+				function () {
+				switch (color.$) {
+					case 'Default':
+						return $surprisetalk$elm_bulma$Bulma$Classes$none;
+					case 'White':
+						return $surprisetalk$elm_bulma$Bulma$Classes$isWhite;
+					case 'Light':
+						return $surprisetalk$elm_bulma$Bulma$Classes$isLight;
+					case 'Dark':
+						return $surprisetalk$elm_bulma$Bulma$Classes$isDark;
+					case 'Black':
+						return $surprisetalk$elm_bulma$Bulma$Classes$isBlack;
+					case 'Primary':
+						return $surprisetalk$elm_bulma$Bulma$Classes$isPrimary;
+					case 'Info':
+						return $surprisetalk$elm_bulma$Bulma$Classes$isInfo;
+					case 'Success':
+						return $surprisetalk$elm_bulma$Bulma$Classes$isSuccess;
+					case 'Warning':
+						return $surprisetalk$elm_bulma$Bulma$Classes$isWarning;
+					case 'Danger':
+						return $surprisetalk$elm_bulma$Bulma$Classes$isDanger;
+					default:
+						return $surprisetalk$elm_bulma$Bulma$Classes$isLink;
+				}
+			}()
+			]));
+};
+var $elm$core$Basics$round = _Basics_round;
+var $surprisetalk$elm_bulma$Bulma$Elements$easyProgress = F3(
+	function (mods, attrs, val) {
+		return A3(
+			$surprisetalk$elm_bulma$Bulma$Elements$progress,
+			mods,
+			A2(
+				$elm$core$List$cons,
+				$elm$html$Html$Attributes$value(
+					$elm$core$String$fromInt(
+						$elm$core$Basics$round(val * 100))),
+				A2(
+					$elm$core$List$cons,
+					$elm$html$Html$Attributes$max('100'),
+					attrs)),
+			_List_Nil);
+	});
+var $surprisetalk$elm_bulma$Bulma$Elements$progressModifiers = {color: $surprisetalk$elm_bulma$Bulma$Modifiers$Default, size: $surprisetalk$elm_bulma$Bulma$Modifiers$Standard};
+var $surprisetalk$elm_bulma$Bulma$Modifiers$Danger = {$: 'Danger'};
+var $surprisetalk$elm_bulma$Bulma$Modifiers$Warning = {$: 'Warning'};
+var $author$project$Example$statusToColor = function (videostatus) {
+	switch (videostatus.$) {
+		case 'Done':
+			return $surprisetalk$elm_bulma$Bulma$Modifiers$Success;
+		case 'Submitted':
+			return $surprisetalk$elm_bulma$Bulma$Modifiers$Warning;
+		case 'Error':
+			return $surprisetalk$elm_bulma$Bulma$Modifiers$Danger;
+		default:
+			return $surprisetalk$elm_bulma$Bulma$Modifiers$Info;
+	}
+};
+var $surprisetalk$elm_bulma$Bulma$Elements$tableCell = A2($surprisetalk$elm_bulma$Helpers$node, 'td', _List_Nil);
+var $author$project$Example$videoToRow = function (video) {
+	return A3(
 		$surprisetalk$elm_bulma$Bulma$Elements$tableRow,
 		false,
 		_List_Nil,
@@ -6733,7 +6811,8 @@ var $author$project$Example$videoList = function () {
 				_List_Nil,
 				_List_fromArray(
 					[
-						$elm$html$Html$text('https://www.youtube.com/watch?v=SGBP3sG3a9Y')
+						$elm$html$Html$text(
+						A2($elm$core$Maybe$withDefault, video.url, video.title))
 					])),
 				A2(
 				$surprisetalk$elm_bulma$Bulma$Elements$tableCell,
@@ -6744,59 +6823,93 @@ var $author$project$Example$videoList = function () {
 						$surprisetalk$elm_bulma$Bulma$Elements$easyProgress,
 						_Utils_update(
 							$surprisetalk$elm_bulma$Bulma$Elements$progressModifiers,
-							{color: $surprisetalk$elm_bulma$Bulma$Modifiers$Success}),
+							{
+								color: $author$project$Example$statusToColor(video.status)
+							}),
 						_List_Nil,
-						50.0)
+						A2($elm$core$Maybe$withDefault, 1, video.progress))
 					])),
 				A2(
 				$surprisetalk$elm_bulma$Bulma$Elements$tableCell,
 				_List_Nil,
 				_List_fromArray(
 					[
-						A3(
-						$surprisetalk$elm_bulma$Bulma$Elements$icon,
-						$surprisetalk$elm_bulma$Bulma$Modifiers$Standard,
-						_List_Nil,
+						A2(
+						$elm$html$Html$a,
 						_List_fromArray(
 							[
-								A2(
-								$elm$html$Html$i,
+								$elm$html$Html$Events$onClick(
+								$author$project$Example$ViewStdOut(video))
+							]),
+						_List_fromArray(
+							[
+								A3(
+								$surprisetalk$elm_bulma$Bulma$Elements$icon,
+								$surprisetalk$elm_bulma$Bulma$Modifiers$Standard,
+								_List_Nil,
 								_List_fromArray(
 									[
-										$elm$html$Html$Attributes$class('fa fa-file-text-o')
-									]),
-								_List_Nil)
+										A2(
+										$elm$html$Html$i,
+										_List_fromArray(
+											[
+												$elm$html$Html$Attributes$class('fa fa-file-text-o')
+											]),
+										_List_Nil)
+									]))
 							])),
-						A3(
-						$surprisetalk$elm_bulma$Bulma$Elements$icon,
-						$surprisetalk$elm_bulma$Bulma$Modifiers$Standard,
-						_List_Nil,
+						A2(
+						$elm$html$Html$a,
 						_List_fromArray(
 							[
-								A2(
-								$elm$html$Html$i,
+								$elm$html$Html$Events$onClick(
+								$author$project$Example$ViewStdErr(video))
+							]),
+						_List_fromArray(
+							[
+								A3(
+								$surprisetalk$elm_bulma$Bulma$Elements$icon,
+								$surprisetalk$elm_bulma$Bulma$Modifiers$Standard,
+								_List_Nil,
 								_List_fromArray(
 									[
-										$elm$html$Html$Attributes$class('fa fa-file-text')
-									]),
-								_List_Nil)
+										A2(
+										$elm$html$Html$i,
+										_List_fromArray(
+											[
+												$elm$html$Html$Attributes$class('fa fa-file-text')
+											]),
+										_List_Nil)
+									]))
 							])),
-						A3(
-						$surprisetalk$elm_bulma$Bulma$Elements$icon,
-						$surprisetalk$elm_bulma$Bulma$Modifiers$Standard,
-						_List_Nil,
+						A2(
+						$elm$html$Html$a,
 						_List_fromArray(
 							[
-								A2(
-								$elm$html$Html$i,
+								$elm$html$Html$Events$onClick(
+								$author$project$Example$DeleteVideo(video))
+							]),
+						_List_fromArray(
+							[
+								A3(
+								$surprisetalk$elm_bulma$Bulma$Elements$icon,
+								$surprisetalk$elm_bulma$Bulma$Modifiers$Standard,
+								_List_Nil,
 								_List_fromArray(
 									[
-										$elm$html$Html$Attributes$class('fa fa-trash')
-									]),
-								_List_Nil)
+										A2(
+										$elm$html$Html$i,
+										_List_fromArray(
+											[
+												$elm$html$Html$Attributes$class('fa fa-trash')
+											]),
+										_List_Nil)
+									]))
 							]))
 					]))
 			]));
+};
+var $author$project$Example$videoList = function (model) {
 	var headerCells = _List_fromArray(
 		[
 			A2(
@@ -6856,8 +6969,7 @@ var $author$project$Example$videoList = function () {
 								A2(
 								$surprisetalk$elm_bulma$Bulma$Elements$tableBody,
 								_List_Nil,
-								_List_fromArray(
-									[tableEntry, tableEntry, tableEntry])),
+								A2($elm$core$List$map, $author$project$Example$videoToRow, model.videos)),
 								A2(
 								$surprisetalk$elm_bulma$Bulma$Elements$tableFoot,
 								_List_Nil,
@@ -6868,7 +6980,193 @@ var $author$project$Example$videoList = function () {
 							]))
 					]))
 			]));
-}();
+};
+var $author$project$Example$CloseModal = {$: 'CloseModal'};
+var $elm$core$Maybe$andThen = F2(
+	function (callback, maybeValue) {
+		if (maybeValue.$ === 'Just') {
+			var value = maybeValue.a;
+			return callback(value);
+		} else {
+			return $elm$core$Maybe$Nothing;
+		}
+	});
+var $elm$html$Html$code = _VirtualDom_node('code');
+var $surprisetalk$elm_bulma$Bulma$Classes$modal = $elm$html$Html$Attributes$class('modal');
+var $surprisetalk$elm_bulma$Bulma$Components$modal = function (active) {
+	return A2(
+		$surprisetalk$elm_bulma$Helpers$node,
+		'div',
+		_List_fromArray(
+			[
+				$surprisetalk$elm_bulma$Bulma$Classes$modal,
+				function () {
+				if (active) {
+					return $surprisetalk$elm_bulma$Bulma$Classes$isActive;
+				} else {
+					return $surprisetalk$elm_bulma$Bulma$Classes$none;
+				}
+			}()
+			]));
+};
+var $surprisetalk$elm_bulma$Bulma$Classes$modalBackground = $elm$html$Html$Attributes$class('modal-background');
+var $surprisetalk$elm_bulma$Bulma$Components$modalBackground = A2(
+	$surprisetalk$elm_bulma$Helpers$node,
+	'div',
+	_List_fromArray(
+		[$surprisetalk$elm_bulma$Bulma$Classes$modalBackground]));
+var $surprisetalk$elm_bulma$Bulma$Classes$modalCard = $elm$html$Html$Attributes$class('modal-card');
+var $surprisetalk$elm_bulma$Bulma$Components$modalCard = A2(
+	$surprisetalk$elm_bulma$Helpers$node,
+	'div',
+	_List_fromArray(
+		[$surprisetalk$elm_bulma$Bulma$Classes$modalCard]));
+var $surprisetalk$elm_bulma$Bulma$Classes$modalCardBody = $elm$html$Html$Attributes$class('modal-card-body');
+var $surprisetalk$elm_bulma$Bulma$Components$modalCardBody = A2(
+	$surprisetalk$elm_bulma$Helpers$node,
+	'div',
+	_List_fromArray(
+		[$surprisetalk$elm_bulma$Bulma$Classes$modalCardBody]));
+var $surprisetalk$elm_bulma$Bulma$Classes$modalCardFoot = $elm$html$Html$Attributes$class('modal-card-foot');
+var $surprisetalk$elm_bulma$Bulma$Components$modalCardFoot = A2(
+	$surprisetalk$elm_bulma$Helpers$node,
+	'div',
+	_List_fromArray(
+		[$surprisetalk$elm_bulma$Bulma$Classes$modalCardFoot]));
+var $surprisetalk$elm_bulma$Bulma$Classes$modalCardHead = $elm$html$Html$Attributes$class('modal-card-head');
+var $surprisetalk$elm_bulma$Bulma$Components$modalCardHead = A2(
+	$surprisetalk$elm_bulma$Helpers$node,
+	'div',
+	_List_fromArray(
+		[$surprisetalk$elm_bulma$Bulma$Classes$modalCardHead]));
+var $surprisetalk$elm_bulma$Bulma$Classes$modalCardTitle = $elm$html$Html$Attributes$class('modal-card-title');
+var $surprisetalk$elm_bulma$Bulma$Components$modalCardTitle = A2(
+	$surprisetalk$elm_bulma$Helpers$node,
+	'div',
+	_List_fromArray(
+		[$surprisetalk$elm_bulma$Bulma$Classes$modalCardTitle]));
+var $surprisetalk$elm_bulma$Bulma$Classes$modalClose = $elm$html$Html$Attributes$class('modal-close');
+var $surprisetalk$elm_bulma$Bulma$Components$modalClose = function (size) {
+	return A2(
+		$surprisetalk$elm_bulma$Helpers$node,
+		'a',
+		_List_fromArray(
+			[
+				$surprisetalk$elm_bulma$Bulma$Classes$modalClose,
+				function () {
+				switch (size.$) {
+					case 'Small':
+						return $surprisetalk$elm_bulma$Bulma$Classes$isSmall;
+					case 'Standard':
+						return $surprisetalk$elm_bulma$Bulma$Classes$none;
+					case 'Medium':
+						return $surprisetalk$elm_bulma$Bulma$Classes$isMedium;
+					default:
+						return $surprisetalk$elm_bulma$Bulma$Classes$isLarge;
+				}
+			}()
+			]));
+};
+var $elm_community$maybe_extra$Maybe$Extra$orElse = F2(
+	function (ma, mb) {
+		if (mb.$ === 'Nothing') {
+			return ma;
+		} else {
+			return mb;
+		}
+	});
+var $author$project$Example$videoModal = function (model) {
+	return A3(
+		$surprisetalk$elm_bulma$Bulma$Components$modal,
+		model.showingModal,
+		_List_Nil,
+		_List_fromArray(
+			[
+				A2($surprisetalk$elm_bulma$Bulma$Components$modalBackground, _List_Nil, _List_Nil),
+				A2(
+				$surprisetalk$elm_bulma$Bulma$Components$modalCard,
+				_List_Nil,
+				_List_fromArray(
+					[
+						A2(
+						$surprisetalk$elm_bulma$Bulma$Components$modalCardHead,
+						_List_Nil,
+						_List_fromArray(
+							[
+								A2(
+								$surprisetalk$elm_bulma$Bulma$Components$modalCardTitle,
+								_List_Nil,
+								_List_fromArray(
+									[
+										$elm$html$Html$text(
+										A2(
+											$elm$core$Maybe$withDefault,
+											'N/A',
+											A2(
+												$elm_community$maybe_extra$Maybe$Extra$orElse,
+												A2(
+													$elm$core$Maybe$map,
+													function ($) {
+														return $.url;
+													},
+													model.videoInModal),
+												A2(
+													$elm$core$Maybe$andThen,
+													function ($) {
+														return $.title;
+													},
+													model.videoInModal))))
+									]))
+							])),
+						A2(
+						$surprisetalk$elm_bulma$Bulma$Components$modalCardBody,
+						_List_Nil,
+						_List_fromArray(
+							[
+								A2(
+								$elm$core$Maybe$withDefault,
+								A3(
+									$surprisetalk$elm_bulma$Bulma$Elements$icon,
+									$surprisetalk$elm_bulma$Bulma$Modifiers$Standard,
+									_List_Nil,
+									_List_fromArray(
+										[
+											A2(
+											$elm$html$Html$i,
+											_List_fromArray(
+												[
+													$elm$html$Html$Attributes$class('fa fa-spinner fa-pulse')
+												]),
+											_List_Nil)
+										])),
+								A2(
+									$elm$core$Maybe$map,
+									function (t) {
+										return A2(
+											$elm$html$Html$code,
+											_List_fromArray(
+												[
+													A2($elm$html$Html$Attributes$style, 'display', 'flex')
+												]),
+											_List_fromArray(
+												[
+													$elm$html$Html$text(t)
+												]));
+									},
+									model.textInModal))
+							])),
+						A2($surprisetalk$elm_bulma$Bulma$Components$modalCardFoot, _List_Nil, _List_Nil)
+					])),
+				A3(
+				$surprisetalk$elm_bulma$Bulma$Components$modalClose,
+				$surprisetalk$elm_bulma$Bulma$Modifiers$Large,
+				_List_fromArray(
+					[
+						$elm$html$Html$Events$onClick($author$project$Example$CloseModal)
+					]),
+				_List_Nil)
+			]));
+};
 var $author$project$Example$view = function (model) {
 	return A2(
 		$elm$html$Html$main_,
@@ -6877,14 +7175,21 @@ var $author$project$Example$view = function (model) {
 			[
 				$surprisetalk$elm_bulma$Bulma$CDN$stylesheet,
 				$author$project$Example$fontAwesomeCDN,
+				$author$project$Example$videoModal(model),
 				$author$project$Example$videoHeader(model),
-				$author$project$Example$videoList,
+				$author$project$Example$videoList(model),
 				$author$project$Example$videoFooter
 			]));
 };
 var $author$project$Example$main = $elm$browser$Browser$sandbox(
 	{
-		init: {url: ''},
+		init: {
+			showingModal: false,
+			textInModal: $elm$core$Maybe$Just('Logging'),
+			url: '',
+			videoInModal: $elm$core$Maybe$Nothing,
+			videos: $author$project$Example$myVideos
+		},
 		update: $author$project$Example$update,
 		view: $author$project$Example$view
 	});
