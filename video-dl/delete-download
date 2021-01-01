@@ -1,0 +1,6 @@
+#!/bin/sh
+set -ex
+
+pid=$(kapow get /request/matches/pid)
+
+rm /logs/${pid}.*

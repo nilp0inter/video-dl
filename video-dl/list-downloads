@@ -1,0 +1,4 @@
+#!/bin/sh
+set -ex
+kapow set /response/headers/Content-Type application/json
+find /logs -type f -name "*.$1" -exec basename {} ".$1" \; | jq --raw-input --slurp 'split("\n") | .[0:-1]' | kapow set /response/body

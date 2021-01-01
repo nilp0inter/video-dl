@@ -1,0 +1,14 @@
+#!/bin/sh
+set -ex
+
+pid=$(kapow get /request/matches/pid)
+stream=$(kapow get /request/matches/stream)
+log="/logs/$pid.$stream"
+
+kapow set /response/headers/Content-Type "$1" 
+
+if [ -e "$log" ]; then
+  kapow set /response/body < $log
+else
+  kapow set /response/status 404
+fi
