@@ -39,6 +39,7 @@ type alias Video =
 type Msg = UpdateURL String
          | DownloadVideo
          | DeleteVideo Video
+         | ViewInfo Video
          | ViewStdOut Video
          | ViewStdErr Video
          | CloseModal
@@ -99,6 +100,7 @@ update msg model
       UpdateURL u -> { model | url = u }
       DownloadVideo -> { model | url = "" }
       DeleteVideo video -> { model | url = "deleted video" }
+      ViewInfo video -> { model | showingModal = True, videoInModal = Just video }
       ViewStdOut video -> { model | showingModal = True, videoInModal = Just video }
       ViewStdErr video -> { model | showingModal = True, videoInModal = Just video }
       CloseModal -> { model | showingModal = False, videoInModal = Nothing }
@@ -164,7 +166,8 @@ videoToRow : Video -> Html Msg
 videoToRow video
   = tableRow False [] [ tableCell [] [ text (Maybe.withDefault video.url video.title) ]
                                      , tableCell [] [ easyProgress { progressModifiers | color = statusToColor video.status } [] (Maybe.withDefault 1 video.progress) ]
-                                     , tableCell [] [ a [ onClick (ViewStdOut video) ] [ icon Standard [] [ i [ class "fa fa-file-text-o" ] [] ] ] 
+                                     , tableCell [] [ a [ onClick (ViewInfo video) ] [ icon Standard [] [ i [ class "fa fa-info" ] [] ] ]
+                                                    , a [ onClick (ViewStdOut video) ] [ icon Standard [] [ i [ class "fa fa-file-text-o" ] [] ] ] 
                                                     , a [ onClick (ViewStdErr video) ] [ icon Standard [] [ i [ class "fa fa-file-text" ] [] ] ]
                                                     , a [ onClick (DeleteVideo video) ] [ icon Standard [] [ i [ class "fa fa-trash" ] [] ] ]
                                                     ]
@@ -173,9 +176,9 @@ videoToRow video
 videoList : Model -> Html Msg
 videoList model
   = let
-      headerCells = [ tableCellHead [ style "width" "60%" ] [ text "Video" ]
+      headerCells = [ tableCellHead [ style "width" "66%" ] [ text "Video" ]
                     , tableCellHead [] [ text "Status" ]
-                    , tableCellHead [ style "width" "10%" ] [ text "Actions" ]
+                    , tableCellHead [ style "width" "128px" ] [ text "Actions" ]
                     ]
 
     in
