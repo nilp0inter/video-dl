@@ -1,0 +1,10 @@
+#!/bin/sh
+set -x
+
+kapow set /response/headers/Access-Control-Allow-origin '*'
+kapow set /response/headers/Content-Type application/json
+
+pid=$(kapow get /request/matches/pid)
+
+tac /logs/${pid}.stdout | awk '/^\[download\]\s+[0-9]+\.[0-9]+%/ { print substr($2, 1, length($2)-1)/100; exit; }' | kapow set /response/body
+

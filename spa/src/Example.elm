@@ -59,6 +59,7 @@ type Msg
     | GotDownloadResponse String (Result Http.Error String)
     | GotDeleteResponse String (Result Http.Error ())
     | GotStatusResponse String (Result Http.Error VideoStatus)
+    | GotProgressResponse String (Result Http.Error (Maybe Float))
 
 
 myVideos =
@@ -107,7 +108,7 @@ statusToColor videostatus =
 
 initialModel =
     { url = ""
-    , videos = myVideos
+    , videos = []
     , showingModal = False
     , videoInModal = Nothing
     , textInModal = Just "Logging"
@@ -182,16 +183,43 @@ update msg model =
             case res of
                 Ok status ->
                     ( { model | videos = List.map (updateVideoStatus id status) model.videos }
-                    , Task.attempt (GotStatusResponse id) (requestStatus id)
+                    , Cmd.batch
+                        [ if status == Submitted || status == Pending then
+                            Task.attempt (GotStatusResponse id) (requestStatus id)
+
+                          else
+                            Cmd.none
+                        , if status == Pending then
+                            requestProgress id
+
+                          else
+                            Cmd.none
+                        ]
                     )
 
                 Err _ ->
-                    ( { model | url = "ERROR!" }, Cmd.none )
+                    ( model, Cmd.none )
+
+        GotProgressResponse id res ->
+            case res of
+                Ok progress ->
+                    ( { model | videos = List.map (updateVideoProgress id progress) model.videos }, Cmd.none )
+
+                Err _ ->
+                    ( model, Cmd.none )
 
 
 updateVideoStatus id status video =
     if video.id == id then
         { video | status = status }
+
+    else
+        video
+
+
+updateVideoProgress id progress video =
+    if video.id == id then
+        { video | progress = progress }
 
     else
         video
@@ -234,6 +262,13 @@ requestStatus id =
                     , timeout = Nothing
                     }
             )
+
+
+requestProgress id =
+    Http.get
+        { url = "http://localhost:8080/download/" ++ id ++ "/progress"
+        , expect = Http.expectJson (GotProgressResponse id) (Decode.maybe Decode.float)
+        }
 
 
 stringToStatus : String -> VideoStatus
@@ -368,7 +403,7 @@ videoToRow video =
     tableRow False
         []
         [ tableCell [] [ text (Maybe.withDefault video.url video.title) ]
-        , tableCell [] [ easyProgress { progressModifiers | color = statusToColor video.status } [] (Maybe.withDefault 1 video.progress) ]
+        , tableCell [] [ easyProgress { progressModifiers | color = statusToColor video.status } [] (videoToProgress video) ]
         , tableCell []
             [ a [ onClick (ViewInfo video) ] [ icon Standard [] [ i [ class "fa fa-info" ] [] ] ]
             , a [ onClick (ViewStdOut video) ] [ icon Standard [] [ i [ class "fa fa-file-text-o" ] [] ] ]
@@ -376,6 +411,15 @@ videoToRow video =
             , a [ onClick (DeleteVideo video) ] [ icon Standard [] [ i [ class "fa fa-trash" ] [] ] ]
             ]
         ]
+
+
+videoToProgress : Video -> Float
+videoToProgress video =
+    if video.status == Pending then
+        Maybe.withDefault 0 video.progress
+
+    else
+        1
 
 
 videoList : Model -> Html Msg

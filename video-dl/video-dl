@@ -11,6 +11,7 @@ kapow route add -X OPTIONS  '/{url:.*}' - <<'EOF'
 EOF
 
 kapow route add -X GET     '/download/{pid:[a-f0-9\-]+}/status' -e /video-dl/get-download-status
+kapow route add -X GET     '/download/{pid:[a-f0-9\-]+}/progress' -e /video-dl/get-download-progress
 
 kapow route add -X GET     '/download/{pid:[a-f0-9\-]+}/log/{stream:submitted|stdout|stderr}' -e /video-dl/get-download-log -c 'text/plain'
 kapow route add -X GET     '/download/{pid:[a-f0-9\-]+}/log/{stream:pending|done|error}' -e /video-dl/get-download-log -c 'application/json'
