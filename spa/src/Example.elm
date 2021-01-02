@@ -13,7 +13,10 @@ import Html exposing (Attribute, Html, a, br, code, i, img, input, main_, option
 import Html.Attributes exposing (attribute, class, href, placeholder, rel, src, style, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Http
+import Json.Decode as Decode
 import Maybe.Extra exposing (orElse)
+import Process
+import Task
 
 
 type alias Model =
@@ -41,6 +44,10 @@ type alias Video =
     }
 
 
+defaultVideo =
+    { id = "", url = "", title = Nothing, status = Submitted, progress = Nothing }
+
+
 type Msg
     = UpdateURL String
     | DownloadVideo
@@ -51,6 +58,7 @@ type Msg
     | CloseModal
     | GotDownloadResponse String (Result Http.Error String)
     | GotDeleteResponse String (Result Http.Error ())
+    | GotStatusResponse String (Result Http.Error VideoStatus)
 
 
 myVideos =
@@ -155,7 +163,9 @@ update msg model =
         GotDownloadResponse url res ->
             case res of
                 Ok id ->
-                    ( { model | videos = { id = id, url = url, title = Nothing, status = Submitted, progress = Nothing } :: model.videos }, Cmd.none )
+                    ( { model | videos = { defaultVideo | id = id, url = url } :: model.videos }
+                    , Task.attempt (GotStatusResponse id) (requestStatus id)
+                    )
 
                 Err _ ->
                     ( { model | url = "ERROR!" }, Cmd.none )
@@ -167,6 +177,84 @@ update msg model =
 
                 Err _ ->
                     ( { model | url = "ERROR!" }, Cmd.none )
+
+        GotStatusResponse id res ->
+            case res of
+                Ok status ->
+                    ( { model | videos = List.map (updateVideoStatus id status) model.videos }
+                    , Task.attempt (GotStatusResponse id) (requestStatus id)
+                    )
+
+                Err _ ->
+                    ( { model | url = "ERROR!" }, Cmd.none )
+
+
+updateVideoStatus id status video =
+    if video.id == id then
+        { video | status = status }
+
+    else
+        video
+
+
+handleJsonResponse : Decode.Decoder a -> Http.Response String -> Result Http.Error a
+handleJsonResponse decoder response =
+    case response of
+        Http.BadUrl_ url ->
+            Err (Http.BadUrl url)
+
+        Http.Timeout_ ->
+            Err Http.Timeout
+
+        Http.BadStatus_ { statusCode } _ ->
+            Err (Http.BadStatus statusCode)
+
+        Http.NetworkError_ ->
+            Err Http.NetworkError
+
+        Http.GoodStatus_ _ body ->
+            case Decode.decodeString decoder body of
+                Err _ ->
+                    Err (Http.BadBody body)
+
+                Ok result ->
+                    Ok result
+
+
+requestStatus id =
+    Process.sleep 2000
+        |> Task.andThen
+            (\_ ->
+                Http.task
+                    { method = "GET"
+                    , headers = []
+                    , url = "http://localhost:8080/download/" ++ id ++ "/status"
+                    , body = Http.emptyBody
+                    , resolver = Http.stringResolver <| handleJsonResponse <| decodeStatus
+                    , timeout = Nothing
+                    }
+            )
+
+
+stringToStatus : String -> VideoStatus
+stringToStatus s =
+    case s of
+        "done" ->
+            Done
+
+        "pending" ->
+            Pending
+
+        "error" ->
+            Error
+
+        _ ->
+            Submitted
+
+
+decodeStatus : Decode.Decoder VideoStatus
+decodeStatus =
+    Decode.map stringToStatus Decode.string
 
 
 requestDeleteVideo : String -> Cmd Msg

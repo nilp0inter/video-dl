@@ -1,0 +1,14 @@
+#!/bin/sh
+set -x
+
+kapow set /response/headers/Access-Control-Allow-origin '*'
+kapow set /response/headers/Content-Type application/json
+
+pid=$(kapow get /request/matches/pid)
+
+status=$(find /logs/ -name "${pid}.done" -or -name "${pid}.pending" -or -name "${pid}.error" 2> /dev/null)
+if [ -e "$status" ]; then 
+	basename "$status" | cut -d. -f2 | jq --raw-input --slurp '.[0:-1]' | kapow set /response/body
+else
+	kapow set /response/status 404
+fi
