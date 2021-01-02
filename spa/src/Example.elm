@@ -15,6 +15,8 @@ import Html exposing ( Html, Attribute, main_, span, a, p, img ,br, text, strong
 import Html.Events exposing ( onInput, onClick )
 import Html.Attributes exposing ( attribute, style, src, placeholder, type_, href, rel, class, value)
 
+import Http
+
 type alias Model = 
   { url : String
   , videos : List Video 
@@ -43,6 +45,8 @@ type Msg = UpdateURL String
          | ViewStdOut Video
          | ViewStdErr Video
          | CloseModal
+         | GotDownloadResponse String (Result Http.Error String)
+         | GotDeleteResponse String (Result Http.Error ())
 
 myVideos = 
   [ { id = "id1"
@@ -79,12 +83,19 @@ statusToColor videostatus
           Error -> Danger
           Pending -> Info
 
-main : Program () Model Msg
+initialModel
+  = { url = ""
+    , videos = myVideos
+    , showingModal = False
+    , videoInModal = Nothing
+    , textInModal = Just "Logging" }
+
 main
-  = Browser.sandbox
-    { init = {url="", videos=myVideos, showingModal=False, videoInModal=Nothing, textInModal=Just "Logging"}
+  = Browser.element
+    { init = init
     , view = view
     , update = update
+    , subscriptions = \_ -> Sub.none
     }
 
 fontAwesomeCDN
@@ -94,16 +105,45 @@ fontAwesomeCDN
     ]
     []
 
-update : Msg -> Model -> Model
+init : () -> (Model, Cmd Msg)
+init _ = (initialModel, Cmd.none)
+
+update : Msg -> Model -> (Model, Cmd Msg)
 update msg model
   = case msg of
-      UpdateURL u -> { model | url = u }
-      DownloadVideo -> { model | url = "" }
-      DeleteVideo video -> { model | url = "deleted video" }
-      ViewInfo video -> { model | showingModal = True, videoInModal = Just video }
-      ViewStdOut video -> { model | showingModal = True, videoInModal = Just video }
-      ViewStdErr video -> { model | showingModal = True, videoInModal = Just video }
-      CloseModal -> { model | showingModal = False, videoInModal = Nothing }
+      UpdateURL u -> ({ model | url = u }, Cmd.none)
+      DownloadVideo -> ({ model | url = "" }, requestDownloadVideo model.url)
+      DeleteVideo video -> ( model, requestDeleteVideo video.id )
+      ViewInfo video -> ({ model | showingModal = True, videoInModal = Just video }, Cmd.none)
+      ViewStdOut video -> ({ model | showingModal = True, videoInModal = Just video }, Cmd.none)
+      ViewStdErr video -> ({ model | showingModal = True, videoInModal = Just video }, Cmd.none)
+      CloseModal -> ({ model | showingModal = False, videoInModal = Nothing }, Cmd.none)
+      GotDownloadResponse url res -> case res of
+              Ok id -> ({ model | videos = { id = id, url = url, title = Nothing, status = Submitted, progress = Nothing } :: model.videos }, Cmd.none)
+              Err _ -> ({ model | url = "ERROR!" }, Cmd.none)
+      GotDeleteResponse id res -> case res of
+              Ok _  -> ( { model | videos = List.filter ( \video -> video.id /= id ) model.videos }, Cmd.none )
+              Err _ -> ({ model | url = "ERROR!" }, Cmd.none)
+                                  
+requestDeleteVideo: String -> Cmd Msg
+requestDeleteVideo id
+  = Http.request
+      { method = "DELETE"
+      , headers = []
+      , url = "http://localhost:8080/download/" ++ id
+      , body = Http.emptyBody
+      , expect = Http.expectWhatever (GotDeleteResponse id)
+      , timeout = Nothing
+      , tracker = Nothing
+      }
+
+requestDownloadVideo : String -> Cmd Msg
+requestDownloadVideo url
+  = Http.post
+      { url = "http://localhost:8080/download"
+      , body = Http.stringBody "text/plain" url
+      , expect = Http.expectString (GotDownloadResponse url)
+      }
 
 view : Model -> Html Msg
 view model
@@ -176,7 +216,7 @@ videoToRow video
 videoList : Model -> Html Msg
 videoList model
   = let
-      headerCells = [ tableCellHead [ style "width" "66%" ] [ text "Video" ]
+      headerCells = [ tableCellHead [ style "width" "61.80%" ] [ text "Video" ]
                     , tableCellHead [] [ text "Status" ]
                     , tableCellHead [ style "width" "128px" ] [ text "Actions" ]
                     ]

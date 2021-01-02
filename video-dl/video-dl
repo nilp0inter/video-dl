@@ -2,10 +2,20 @@
 set -ex
 mkdir -p /downloads /logs
 kapow route add -X POST    '/download' -e /video-dl/download-video
+kapow route add -X DELETE  '/download/{pid:[a-f0-9\-]+}' -e /video-dl/delete-download
+kapow route add -X OPTIONS  '/download/{pid:[a-f0-9\-]+}' - <<'EOF'
+	set -x
+	kapow set /response/headers/Access-Control-Allow-Origin "$(kapow get /request/headers/Origin)"
+	kapow set /response/headers/Access-Control-Allow-Methods "GET, OPTIONS, DELETE"
+	kapow set /response/status 204
+EOF
+
+# NO use
 kapow route add -X GET     '/download/submitted' -e /video-dl/list-downloads -c 'submitted'
 kapow route add -X GET     '/download/pending' -e /video-dl/list-downloads -c 'pending'
 kapow route add -X GET     '/download/done' -e /video-dl/list-downloads -c 'done'
 kapow route add -X GET     '/download/error' -e /video-dl/list-downloads -c 'error'
+
 kapow route add -X GET     '/download/log/{pid:[a-f0-9\-]+}/{stream:submitted|stdout|stderr}' -e /video-dl/get-download-log -c 'text/plain'
 kapow route add -X GET     '/download/log/{pid:[a-f0-9\-]+}/{stream:pending|done|error}' -e /video-dl/get-download-log -c 'application/json'
-kapow route add -X DELETE  '/download/{pid:[a-f0-9\-]+}' -e /video-dl/delete-download
+
