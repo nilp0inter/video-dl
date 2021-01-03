@@ -1,4 +1,7 @@
 #!/bin/sh
 set -ex
+ 
+kapow set /response/headers/Access-Control-Allow-origin '*'
 kapow set /response/headers/Content-Type application/json
-find /logs -type f -name "*.$1" -exec basename {} ".$1" \; | jq --raw-input --slurp 'split("\n") | .[0:-1]' | kapow set /response/body
+
+find /logs/ -name '*.submitted' | awk '{getline line < $0; print $1";"line}' | jq --raw-input '. | split(";") | {"id": .[0] | split("/")[2] | split(".")[0], "url": .[1]}' | jq -s '.' | kapow set /response/body

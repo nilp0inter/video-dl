@@ -60,6 +60,8 @@ type Msg
     | GotDeleteResponse String (Result Http.Error ())
     | GotStatusResponse String (Result Http.Error VideoStatus)
     | GotProgressResponse String (Result Http.Error (Maybe Float))
+    | GotVideosResponse (Result Http.Error (List Video))
+    | GotInfoResponse String (Result Http.Error String)
 
 
 myVideos =
@@ -134,7 +136,7 @@ fontAwesomeCDN =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( initialModel, Cmd.none )
+    ( initialModel, getVideoList )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -194,6 +196,11 @@ update msg model =
 
                           else
                             Cmd.none
+                        , if (getVideo id model.videos |> Maybe.andThen .title) == Nothing then
+                            requestTitle id
+
+                          else
+                            Cmd.none
                         ]
                     )
 
@@ -207,6 +214,39 @@ update msg model =
 
                 Err _ ->
                     ( model, Cmd.none )
+
+        GotVideosResponse res ->
+            case res of
+                Ok videos ->
+                    ( { model | videos = videos }
+                    , Cmd.batch (List.map (\v -> getVideoStatus v.id) videos)
+                    )
+
+                Err _ ->
+                    ( model, Cmd.none )
+
+        GotInfoResponse id res ->
+            case res of
+                Ok title ->
+                    ( { model | videos = List.map (updateVideoTitle id title) model.videos }
+                    , Cmd.none
+                    )
+
+                Err _ ->
+                    ( model, Cmd.none )
+
+
+getVideo : String -> List Video -> Maybe Video
+getVideo id videos =
+    List.filter (\video -> video.id == id) videos |> List.head
+
+
+updateVideoTitle id title video =
+    if video.id == id then
+        { video | title = Just title }
+
+    else
+        video
 
 
 updateVideoStatus id status video =
@@ -262,6 +302,45 @@ requestStatus id =
                     , timeout = Nothing
                     }
             )
+
+
+decodeInfo : Decode.Decoder String
+decodeInfo =
+    Decode.field "title" Decode.string
+
+
+requestTitle id =
+    Http.get
+        { url = "http://localhost:8080/download/" ++ id ++ "/info"
+        , expect = Http.expectJson (GotInfoResponse id) decodeInfo
+        }
+
+
+getVideoStatus id =
+    Http.get
+        { url = "http://localhost:8080/download/" ++ id ++ "/status"
+        , expect = Http.expectJson (GotStatusResponse id) decodeStatus
+        }
+
+
+getVideoList =
+    Http.get
+        { url = "http://localhost:8080/download"
+        , expect = Http.expectJson GotVideosResponse decodeVideoList
+        }
+
+
+fromDefaultVideo id url =
+    { defaultVideo | id = id, url = url }
+
+
+decodeVideoList : Decode.Decoder (List Video)
+decodeVideoList =
+    Decode.list
+        (Decode.map2 fromDefaultVideo
+            (Decode.field "id" Decode.string)
+            (Decode.field "url" Decode.string)
+        )
 
 
 requestProgress id =
