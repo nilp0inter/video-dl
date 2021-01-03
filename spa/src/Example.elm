@@ -2,16 +2,16 @@ module Example exposing (..)
 
 import Browser
 import Bulma.CDN exposing (..)
-import Bulma.Columns as Columns exposing (..)
+import Bulma.Columns exposing (..)
 import Bulma.Components exposing (..)
 import Bulma.Elements exposing (..)
 import Bulma.Form exposing (..)
 import Bulma.Layout exposing (..)
 import Bulma.Modifiers exposing (..)
 import Bulma.Modifiers.Typography exposing (textCentered)
-import Html exposing (Attribute, Html, a, br, code, i, img, input, main_, option, p, small, span, strong, text)
-import Html.Attributes exposing (attribute, class, href, placeholder, rel, src, style, type_, value)
-import Html.Events exposing (onClick, onInput)
+import Html exposing (Attribute, Html, a, code, i, main_, p, pre, strong, text)
+import Html.Attributes exposing (class, href, placeholder, rel, style, value)
+import Html.Events exposing (onClick, onInput, onMouseEnter, onMouseOver)
 import Http
 import Json.Decode as Decode
 import Maybe.Extra exposing (orElse)
@@ -24,7 +24,16 @@ type alias Model =
     , videos : List Video
     , showingModal : Bool
     , videoInModal : Maybe Video
-    , textInModal : Maybe String
+    , textInModal : DownloadLog
+    , showingVideoInfo : Maybe String
+    }
+
+
+type alias VideoInfo =
+    { title : Maybe String
+    , description : Maybe String
+    , extractor_key : String
+    , thumbnail : Maybe String
     }
 
 
@@ -35,17 +44,33 @@ type VideoStatus
     | Pending
 
 
+type DownloadLog
+    = PendingLog
+    | MissingLog
+    | Log String
+
+
 type alias Video =
     { id : String
     , url : String
     , title : Maybe String
+    , description : Maybe String
+    , extractor_key : Maybe String
+    , thumbnail : Maybe String
     , status : VideoStatus
     , progress : Maybe Float
     }
 
 
 defaultVideo =
-    { id = "", url = "", title = Nothing, status = Submitted, progress = Nothing }
+    { id = ""
+    , url = ""
+    , title = Nothing
+    , description = Nothing
+    , extractor_key = Nothing
+    , thumbnail = Nothing
+    , status = Submitted
+    , progress = Nothing }
 
 
 type Msg
@@ -61,7 +86,10 @@ type Msg
     | GotStatusResponse String (Result Http.Error VideoStatus)
     | GotProgressResponse String (Result Http.Error (Maybe Float))
     | GotVideosResponse (Result Http.Error (List Video))
-    | GotInfoResponse String (Result Http.Error String)
+    | GotInfoResponse String (Result Http.Error VideoInfo)
+    | GotStdOutResponse String (Result Http.Error String)
+    | GotStdErrResponse String (Result Http.Error String)
+    | ShowVideoInfo String
 
 
 myVideos =
@@ -113,7 +141,8 @@ initialModel =
     , videos = []
     , showingModal = False
     , videoInModal = Nothing
-    , textInModal = Just "Logging"
+    , textInModal = PendingLog
+    , showingVideoInfo = Nothing
     }
 
 
@@ -152,16 +181,19 @@ update msg model =
             ( model, requestDeleteVideo video.id )
 
         ViewInfo video ->
-            ( { model | showingModal = True, videoInModal = Just video }, Cmd.none )
+            ( { model | showingModal = True, videoInModal = Just video }
+            , Cmd.none )
 
         ViewStdOut video ->
-            ( { model | showingModal = True, videoInModal = Just video }, Cmd.none )
+            ( { model | showingModal = True, videoInModal = Just video }
+            , requestStdOut video.id )
 
         ViewStdErr video ->
-            ( { model | showingModal = True, videoInModal = Just video }, Cmd.none )
+            ( { model | showingModal = True, videoInModal = Just video }
+            , requestStdErr video.id )
 
         CloseModal ->
-            ( { model | showingModal = False, videoInModal = Nothing }, Cmd.none )
+            ( { model | showingModal = False, videoInModal = Nothing, textInModal = PendingLog }, Cmd.none )
 
         GotDownloadResponse url res ->
             case res of
@@ -197,7 +229,7 @@ update msg model =
                           else
                             Cmd.none
                         , if (getVideo id model.videos |> Maybe.andThen .title) == Nothing then
-                            requestTitle id
+                            requestInfo id
 
                           else
                             Cmd.none
@@ -227,13 +259,30 @@ update msg model =
 
         GotInfoResponse id res ->
             case res of
-                Ok title ->
-                    ( { model | videos = List.map (updateVideoTitle id title) model.videos }
+                Ok info ->
+                    ( { model | videos = List.map (updateVideoInfo id info) model.videos }
                     , Cmd.none
                     )
 
                 Err _ ->
                     ( model, Cmd.none )
+
+        GotStdOutResponse id res ->
+            case res of
+                Ok stdout ->
+                    ( { model | textInModal = Log stdout }, Cmd.none )
+                Err _ ->
+                    ( { model | textInModal = MissingLog }, Cmd.none )
+
+        GotStdErrResponse id res ->
+            case res of
+                Ok stderr ->
+                    ( { model | textInModal = Log stderr }, Cmd.none )
+                Err _ ->
+                    ( { model | textInModal = MissingLog }, Cmd.none )
+
+        ShowVideoInfo id ->
+            ( { model | showingVideoInfo = Just id }, Cmd.none )
 
 
 getVideo : String -> List Video -> Maybe Video
@@ -241,9 +290,12 @@ getVideo id videos =
     List.filter (\video -> video.id == id) videos |> List.head
 
 
-updateVideoTitle id title video =
+updateVideoInfo id info video =
     if video.id == id then
-        { video | title = Just title }
+        { video | title = info.title
+                , description = info.description
+                , extractor_key = Just info.extractor_key
+                , thumbnail = info.thumbnail }
 
     else
         video
@@ -289,6 +341,19 @@ handleJsonResponse decoder response =
                     Ok result
 
 
+requestStdOut id =
+    Http.get
+        { url = "http://localhost:8080/download/" ++ id ++ "/log/stdout"
+        , expect = Http.expectString (GotStdOutResponse id)
+        }
+
+
+requestStdErr id =
+    Http.get
+            { url = "http://localhost:8080/download/" ++ id ++ "/log/stderr"
+            , expect = Http.expectString (GotStdErrResponse id)
+            }
+
 requestStatus id =
     Process.sleep 2000
         |> Task.andThen
@@ -304,12 +369,18 @@ requestStatus id =
             )
 
 
-decodeInfo : Decode.Decoder String
+decodeInfo : Decode.Decoder VideoInfo
 decodeInfo =
-    Decode.field "title" Decode.string
+    Decode.map4 VideoInfo
+        (Decode.field "title" (Decode.maybe Decode.string))
+        (Decode.field "description" (Decode.maybe Decode.string))
+        (Decode.field "extractor_key" Decode.string)
+        (Decode.field "thumbnail" (Decode.maybe Decode.string))
 
 
-requestTitle id =
+
+
+requestInfo id =
     Http.get
         { url = "http://localhost:8080/download/" ++ id ++ "/info"
         , expect = Http.expectJson (GotInfoResponse id) decodeInfo
@@ -422,15 +493,25 @@ videoModal model =
                     ]
                 ]
             , modalCardBody []
-                [ model.textInModal
-                    |> Maybe.map (\t -> code [ style "display" "flex" ] [ text t ])
-                    |> Maybe.withDefault (icon Standard [] [ i [ class "fa fa-spinner fa-pulse" ] [] ])
+                [ viewLog model.textInModal
                 ]
             , modalCardFoot [] []
             ]
         , modalClose Large [ onClick CloseModal ] []
         ]
 
+
+viewLog : DownloadLog -> Html Msg
+viewLog log =
+    case log of
+        PendingLog ->
+           icon Standard [] [ i [ class "fa fa-spinner fa-pulse" ] [] ]
+
+        MissingLog ->
+            text "No log found"
+
+        Log s ->
+           pre [ style "display" "flex" ] [ text s ]
 
 columnSizes =
     { mobile = Just Auto
@@ -477,14 +558,28 @@ videoHeader model =
         ]
 
 
-videoToRow : Video -> Html Msg
-videoToRow video =
+myDropdownTrigger video =
+    hoverableDropdown dropdownModifiers [] [ text (Maybe.withDefault video.url video.title) ]
+
+myDropdownMenu video =
+    dropdownMenu [] []
+    [ dropdownItem False [  ] [ text (Maybe.withDefault "No info" video.description) ]
+    ]
+
+hover model video =
+    dropdown (model.showingVideoInfo == Just video.id) dropdownModifiers []
+    [ myDropdownTrigger video
+    , myDropdownMenu video
+    ]
+
+videoToRow : Model -> Video -> Html Msg
+videoToRow model video =
     tableRow False
         []
-        [ tableCell [] [ text (Maybe.withDefault video.url video.title) ]
+        [ tableCell [  ] [ hover model video ]
         , tableCell [] [ easyProgress { progressModifiers | color = statusToColor video.status } [] (videoToProgress video) ]
         , tableCell []
-            [ a [ onClick (ViewInfo video) ] [ icon Standard [] [ i [ class "fa fa-info" ] [] ] ]
+            [ a [ onMouseEnter (ShowVideoInfo video.id) ] [ icon Standard [] [ i [ class "fa fa-info" ] [] ] ]
             , a [ onClick (ViewStdOut video) ] [ icon Standard [] [ i [ class "fa fa-file-text-o" ] [] ] ]
             , a [ onClick (ViewStdErr video) ] [ icon Standard [] [ i [ class "fa fa-file-text" ] [] ] ]
             , a [ onClick (DeleteVideo video) ] [ icon Standard [] [ i [ class "fa fa-trash" ] [] ] ]
@@ -524,7 +619,7 @@ videoList model =
                 [ tableHead []
                     [ tableRow False [] headerCells
                     ]
-                , tableBody [] (List.map videoToRow model.videos)
+                , tableBody [] (List.map (videoToRow model) model.videos)
                 , tableFoot []
                     [ tableRow False [] headerCells
                     ]

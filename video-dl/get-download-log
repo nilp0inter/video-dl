@@ -1,6 +1,10 @@
 #!/bin/sh
 set -ex
 
+sleep 1
+
+kapow set /response/headers/Access-Control-Allow-origin '*'
+
 pid=$(kapow get /request/matches/pid)
 stream=$(kapow get /request/matches/stream)
 log="/logs/$pid.$stream"
