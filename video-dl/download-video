@@ -8,8 +8,8 @@ echo "$url" > /logs/$pid.submitted
 kapow set /server/log/download "Downloading $url"
 (
 	set +e
-	youtube-dl -J -- "$url" > /logs/$pid.pending \
-	&& youtube-dl -i --newline --no-color --yes-playlist -o '/downloads/%(channel)s/%(creator)s/%(uploader)s/%(playlist_title)s/%(title)s.%(ext)s' -- "$url" > /logs/$pid.stdout 2> /logs/$pid.stderr 
+	youtube-dl -J -- "$url" > /logs/$pid.pending 2> /logs/$pid.stderr \
+	&& youtube-dl -i --newline --no-color --yes-playlist -o '/downloads/%(channel)s/%(creator)s/%(uploader)s/%(playlist_title)s/%(title)s.%(ext)s' -- "$url" > /logs/$pid.stdout 2>> /logs/$pid.stderr
 	if [ $? -eq 0 ]; then
 		mv /logs/$pid.pending /logs/$pid.done
 	else

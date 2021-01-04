@@ -1,0 +1,7 @@
+#!/bin/sh
+docker build . -t video-dl
+docker run -d --name video-dl-dev -v $(pwd)/video-dl:/video-dl -v /downloads -v /logs -p8080:8080 registry.rusonegro.com/video-dl || docker start video-dl-dev
+cd spa
+while true; do
+	elm-live -x /download -y http://localhost:8080/download src/Main.elm
+done

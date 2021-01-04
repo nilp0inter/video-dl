@@ -1,0 +1,2 @@
+#!/bin/sh
+(cd spa; elm make --output ../video-dl/index.html --optimize src/Main.elm) && docker build . -t video-dl

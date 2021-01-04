@@ -2,6 +2,7 @@
 set -ex
 mkdir -p /downloads /logs
 kapow route add  '/' -c 'kapow set /response/headers/Content-Type text/html; kapow set /response/body < /video-dl/index.html'
+kapow route add -X HEAD '/' -c 'kapow set /response/status 200'
 kapow route add -X POST    '/download' -e /video-dl/download-video
 kapow route add -X GET    '/download' -e /video-dl/list-downloads
 kapow route add -X DELETE  '/download/{pid:[a-f0-9\-]+}' -e /video-dl/delete-download
