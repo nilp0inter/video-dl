@@ -9,14 +9,15 @@ import Bulma.Form exposing (..)
 import Bulma.Layout exposing (..)
 import Bulma.Modifiers exposing (..)
 import Bulma.Modifiers.Typography exposing (textCentered)
-import Html exposing (Attribute, Html, a, code, i, main_, p, pre, strong, text)
-import Html.Attributes exposing (class, href, placeholder, rel, style, value)
-import Html.Events exposing (onClick, onInput, onMouseEnter, onMouseOver)
+import Html exposing (Attribute, Html, a, code, div, i, img, main_, p, pre, strong, text)
+import Html.Attributes exposing (class, href, placeholder, rel, style, value, src)
+import Html.Events exposing (onClick, onInput, onMouseEnter, onMouseLeave, onMouseOver)
 import Http
 import Json.Decode as Decode
 import Maybe.Extra exposing (orElse)
 import Process
 import Task
+import Url
 
 
 type alias Model =
@@ -89,7 +90,7 @@ type Msg
     | GotInfoResponse String (Result Http.Error VideoInfo)
     | GotStdOutResponse String (Result Http.Error String)
     | GotStdErrResponse String (Result Http.Error String)
-    | ShowVideoInfo String
+    | ShowVideoInfo (Maybe String)
 
 
 myVideos =
@@ -282,7 +283,7 @@ update msg model =
                     ( { model | textInModal = MissingLog }, Cmd.none )
 
         ShowVideoInfo id ->
-            ( { model | showingVideoInfo = Just id }, Cmd.none )
+            ( { model | showingVideoInfo = id }, Cmd.none )
 
 
 getVideo : String -> List Video -> Maybe Video
@@ -508,7 +509,7 @@ viewLog log =
            icon Standard [] [ i [ class "fa fa-spinner fa-pulse" ] [] ]
 
         MissingLog ->
-            text "No log found"
+            text "😱 Log not found"
 
         Log s ->
            pre [ style "display" "flex" ] [ text s ]
@@ -557,13 +558,51 @@ videoHeader model =
             ]
         ]
 
+myImage : String -> Html msg
+myImage s
+  = image SixteenByNine []
+    [ img [ src s
+          , style "height" "auto"
+          ] []
+    ]
+
+myCardImage : String -> Html msg
+myCardImage s
+  = cardImage [] [ myImage s ]
+
+myCardHeader : String -> String -> Html msg
+myCardHeader s url =
+    let
+        favicon = Url.fromString url
+          |> Maybe.map (\u -> { u | path = "/favicon.ico", query = Nothing, fragment = Nothing })
+          |> Maybe.map Url.toString
+          |> Maybe.withDefault ""
+    in
+      cardHeader []
+        [ cardIcon [ style "padding-left" "1.5rem"]
+              [ icon Standard []
+                 [ img [ src favicon
+                       , style "text-align" "center"
+                       , style "width" "100%"
+                       , style "height" "auto" ] []]
+              ]
+        , cardTitle [] [ text s ]
+        ]
+
+myCard video =
+    card []
+        [ Maybe.withDefault (div [] [])  (Maybe.map myCardImage video.thumbnail)
+        , myCardHeader (Maybe.withDefault video.url video.title) video.url
+        , cardContent [] [ text <| Maybe.withDefault "😿 Description unavailable" video.description ]
+        ]
+--
 
 myDropdownTrigger video =
     hoverableDropdown dropdownModifiers [] [ text (Maybe.withDefault video.url video.title) ]
 
 myDropdownMenu video =
-    dropdownMenu [] []
-    [ dropdownItem False [  ] [ text (Maybe.withDefault "No info" video.description) ]
+    dropdownMenu [style "width" "512px"] []
+    [ dropdownItem False [  ] [ myCard video ]
     ]
 
 hover model video =
@@ -579,7 +618,9 @@ videoToRow model video =
         [ tableCell [  ] [ hover model video ]
         , tableCell [] [ easyProgress { progressModifiers | color = statusToColor video.status } [] (videoToProgress video) ]
         , tableCell []
-            [ a [ onMouseEnter (ShowVideoInfo video.id) ] [ icon Standard [] [ i [ class "fa fa-info" ] [] ] ]
+            [ a [ onMouseEnter (ShowVideoInfo (Just video.id))
+                , onMouseLeave (ShowVideoInfo Nothing)
+                ] [ icon Standard [] [ i [ class "fa fa-info" ] [] ] ]
             , a [ onClick (ViewStdOut video) ] [ icon Standard [] [ i [ class "fa fa-file-text-o" ] [] ] ]
             , a [ onClick (ViewStdErr video) ] [ icon Standard [] [ i [ class "fa fa-file-text" ] [] ] ]
             , a [ onClick (DeleteVideo video) ] [ icon Standard [] [ i [ class "fa fa-trash" ] [] ] ]
