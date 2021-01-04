@@ -1,7 +1,6 @@
 #!/bin/sh
 set -x
 
-kapow set /response/headers/Access-Control-Allow-origin '*'
 kapow set /response/headers/Content-Type application/json
 
 pid=$(kapow get /request/matches/pid)

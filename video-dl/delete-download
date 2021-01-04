@@ -1,8 +1,6 @@
 #!/bin/sh
 set -ex
 
-kapow set /response/headers/Access-Control-Allow-origin '*'
-
 pid=$(kapow get /request/matches/pid)
 
 rm /logs/${pid}.*

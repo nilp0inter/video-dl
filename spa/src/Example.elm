@@ -344,14 +344,14 @@ handleJsonResponse decoder response =
 
 requestStdOut id =
     Http.get
-        { url = "http://localhost:8080/download/" ++ id ++ "/log/stdout"
+        { url = "/download/" ++ id ++ "/log/stdout"
         , expect = Http.expectString (GotStdOutResponse id)
         }
 
 
 requestStdErr id =
     Http.get
-            { url = "http://localhost:8080/download/" ++ id ++ "/log/stderr"
+            { url = "/download/" ++ id ++ "/log/stderr"
             , expect = Http.expectString (GotStdErrResponse id)
             }
 
@@ -362,7 +362,7 @@ requestStatus id =
                 Http.task
                     { method = "GET"
                     , headers = []
-                    , url = "http://localhost:8080/download/" ++ id ++ "/status"
+                    , url = "/download/" ++ id ++ "/status"
                     , body = Http.emptyBody
                     , resolver = Http.stringResolver <| handleJsonResponse <| decodeStatus
                     , timeout = Nothing
@@ -383,21 +383,21 @@ decodeInfo =
 
 requestInfo id =
     Http.get
-        { url = "http://localhost:8080/download/" ++ id ++ "/info"
+        { url = "/download/" ++ id ++ "/info"
         , expect = Http.expectJson (GotInfoResponse id) decodeInfo
         }
 
 
 getVideoStatus id =
     Http.get
-        { url = "http://localhost:8080/download/" ++ id ++ "/status"
+        { url = "/download/" ++ id ++ "/status"
         , expect = Http.expectJson (GotStatusResponse id) decodeStatus
         }
 
 
 getVideoList =
     Http.get
-        { url = "http://localhost:8080/download"
+        { url = "/download"
         , expect = Http.expectJson GotVideosResponse decodeVideoList
         }
 
@@ -417,7 +417,7 @@ decodeVideoList =
 
 requestProgress id =
     Http.get
-        { url = "http://localhost:8080/download/" ++ id ++ "/progress"
+        { url = "/download/" ++ id ++ "/progress"
         , expect = Http.expectJson (GotProgressResponse id) (Decode.maybe Decode.float)
         }
 
@@ -448,7 +448,7 @@ requestDeleteVideo id =
     Http.request
         { method = "DELETE"
         , headers = []
-        , url = "http://localhost:8080/download/" ++ id
+        , url = "/download/" ++ id
         , body = Http.emptyBody
         , expect = Http.expectWhatever (GotDeleteResponse id)
         , timeout = Nothing
@@ -459,7 +459,7 @@ requestDeleteVideo id =
 requestDownloadVideo : String -> Cmd Msg
 requestDownloadVideo url =
     Http.post
-        { url = "http://localhost:8080/download"
+        { url = "/download"
         , body = Http.stringBody "text/plain" url
         , expect = Http.expectString (GotDownloadResponse url)
         }

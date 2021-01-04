@@ -1,8 +1,6 @@
 #!/bin/sh
 set -x
 
-kapow set /response/headers/Access-Control-Allow-origin '*'
-
 url=$(kapow get /request/body)
 pid=$(hostname)-$$
 
