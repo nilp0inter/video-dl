@@ -2,7 +2,7 @@
 set -x
 
 url=$(kapow get /request/body)
-pid=$(hostname)-$$
+pid=$(date +%s)-$(hostname)-$$
 
 echo "$url" > /logs/$pid.submitted
 kapow set /server/log/download "Downloading $url"

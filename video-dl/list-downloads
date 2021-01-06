@@ -3,4 +3,4 @@ set -ex
  
 kapow set /response/headers/Content-Type application/json
 
-find /logs/ -name '*.submitted' | awk '{getline line < $0; print $1";"line}' | jq --raw-input '. | split(";") | {"id": .[0] | split("/")[2] | split(".")[0], "url": .[1]}' | jq -s '.' | kapow set /response/body
+find /logs/ -name '*.submitted' | sort -nr | awk '{getline line < $0; print $1";"line}' | jq --raw-input '. | split(";") | {"id": .[0] | split("/")[2] | split(".")[0], "url": .[1]}' | jq -s '.' | kapow set /response/body
