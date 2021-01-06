@@ -11,6 +11,7 @@ import Bulma.Form exposing (..)
 import Bulma.Layout exposing (..)
 import Bulma.Modifiers exposing (..)
 import Bulma.Modifiers.Typography exposing (textCentered)
+import Html.Events.Extra exposing (onEnter)
 import Html exposing (Attribute, Html, a, code, div, i, img, p, pre, strong, text)
 import Html.Attributes exposing (class, href, placeholder, rel, src, style, value)
 import Html.Events exposing (onClick, onInput, onMouseEnter, onMouseLeave, onMouseOver)
@@ -151,7 +152,9 @@ update msg model =
             ( { model | url = u }, Cmd.none )
 
         DownloadVideo ->
-            ( { model | url = "" }, requestDownloadVideo model.url )
+            ( { model | url = "" }
+            , if model.url == "" then Cmd.none else requestDownloadVideo model.url
+            )
 
         DeleteVideo video ->
             ( model, requestDeleteVideo video.id )
@@ -523,6 +526,7 @@ videoHeader model =
                             [ onInput UpdateURL
                             , placeholder "URL"
                             , value model.url
+                            , onEnter DownloadVideo
                             ]
                             []
                         ]
