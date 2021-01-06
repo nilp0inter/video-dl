@@ -96,34 +96,6 @@ type Msg
     | ShowVideoInfo (Maybe String)
 
 
-myVideos =
-    [ { id = "id1"
-      , url = "www.miurl.es"
-      , title = Just "Video1"
-      , status = Pending
-      , progress = Just 0.2
-      }
-    , { id = "id2"
-      , url = "www.miurl2.es"
-      , title = Just "Video2"
-      , status = Error
-      , progress = Nothing
-      }
-    , { id = "id3"
-      , url = "www.miurl3.es"
-      , title = Just "Video3"
-      , status = Done
-      , progress = Just 1
-      }
-    , { id = "id4"
-      , url = "www.miurl4.es"
-      , title = Nothing
-      , status = Submitted
-      , progress = Nothing
-      }
-    ]
-
-
 statusToColor : VideoStatus -> Color
 statusToColor videostatus =
     case videostatus of
@@ -354,14 +326,14 @@ handleJsonResponse decoder response =
 
 requestStdOut id =
     Http.get
-        { url = "/download/" ++ id ++ "/log/stdout"
+        { url = "/api/download/" ++ id ++ "/log/stdout"
         , expect = Http.expectString (GotStdOutResponse id)
         }
 
 
 requestStdErr id =
     Http.get
-        { url = "/download/" ++ id ++ "/log/stderr"
+        { url = "/api/download/" ++ id ++ "/log/stderr"
         , expect = Http.expectString (GotStdErrResponse id)
         }
 
@@ -373,7 +345,7 @@ requestStatus id =
                 Http.task
                     { method = "GET"
                     , headers = []
-                    , url = "/download/" ++ id ++ "/status"
+                    , url = "/api/download/" ++ id ++ "/status"
                     , body = Http.emptyBody
                     , resolver = Http.stringResolver <| handleJsonResponse <| decodeStatus
                     , timeout = Nothing
@@ -392,21 +364,21 @@ decodeInfo =
 
 requestInfo id =
     Http.get
-        { url = "/download/" ++ id ++ "/info"
+        { url = "/api/download/" ++ id ++ "/info"
         , expect = Http.expectJson (GotInfoResponse id) decodeInfo
         }
 
 
 getVideoStatus id =
     Http.get
-        { url = "/download/" ++ id ++ "/status"
+        { url = "/api/download/" ++ id ++ "/status"
         , expect = Http.expectJson (GotStatusResponse id) decodeStatus
         }
 
 
 getVideoList =
     Http.get
-        { url = "/download"
+        { url = "/api/download"
         , expect = Http.expectJson GotVideosResponse decodeVideoList
         }
 
@@ -426,7 +398,7 @@ decodeVideoList =
 
 requestProgress id =
     Http.get
-        { url = "/download/" ++ id ++ "/progress"
+        { url = "/api/download/" ++ id ++ "/progress"
         , expect = Http.expectJson (GotProgressResponse id) (Decode.maybe Decode.float)
         }
 
@@ -457,7 +429,7 @@ requestDeleteVideo id =
     Http.request
         { method = "DELETE"
         , headers = []
-        , url = "/download/" ++ id
+        , url = "/api/download/" ++ id
         , body = Http.emptyBody
         , expect = Http.expectWhatever (GotDeleteResponse id)
         , timeout = Nothing
@@ -468,7 +440,7 @@ requestDeleteVideo id =
 requestDownloadVideo : String -> Cmd Msg
 requestDownloadVideo url =
     Http.post
-        { url = "/download"
+        { url = "/api/download"
         , body = Http.stringBody "text/plain" url
         , expect = Http.expectString (GotDownloadResponse url)
         }

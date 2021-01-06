@@ -1,7 +1,8 @@
-#!/bin/sh
+#! /usr/bin/env nix-shell
+#! nix-shell -i bash -p elmPackages.elm-live elmPackages.elm-format
 docker build . -t video-dl
-docker run -d --name video-dl-dev -v $(pwd)/video-dl:/video-dl -v /downloads -v /logs -p8080:8080 registry.rusonegro.com/video-dl || docker start video-dl-dev
+docker rm -f video-dl-dev && docker run -d --rm --name video-dl-dev -v $(pwd)/video-dl:/video-dl -v /downloads -v /logs -p8080:8080 registry.rusonegro.com/video-dl
 cd spa
 while true; do
-	elm-live -x /download -y http://localhost:8080/download src/Main.elm
+	elm-live -x /api -y http://localhost:8080/api src/Main.elm
 done
