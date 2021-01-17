@@ -21,6 +21,7 @@ import Maybe.Extra exposing (orElse)
 import Process
 import Task
 import Url
+import Loading exposing (LoaderType(..), defaultConfig, render)
 
 
 type alias Model =
@@ -30,6 +31,19 @@ type alias Model =
     , videoInModal : Maybe Video
     , textInModal : DownloadLog
     , showingVideoInfo : Maybe String
+    , config : Maybe Config
+    }
+
+
+type alias Config =
+    { title : String
+    , message : String
+    , actionInfo : Bool
+    , actionStdout : Bool
+    , actionStderr : Bool
+    , actionDelete : Bool
+    , bannerBackgroundColor : String
+    , bannerTextColor : String
     }
 
 
@@ -94,6 +108,7 @@ type Msg
     | GotInfoResponse String (Result Http.Error VideoInfo)
     | GotStdOutResponse String (Result Http.Error String)
     | GotStdErrResponse String (Result Http.Error String)
+    | GotConfigResponse (Result Http.Error Config)
     | ShowVideoInfo (Maybe String)
 
 
@@ -112,6 +127,16 @@ statusToColor videostatus =
         Pending ->
             Info
 
+initialConfig =
+    { title = "video-dl"
+    , message = "Video URL"
+    , actionInfo = True
+    , actionStdout = True
+    , actionStderr = True
+    , actionDelete = True
+    , bannerBackgroundColor = "#209cee"
+    , bannerTextColor = "#ffffff"
+    }
 
 initialModel =
     { url = ""
@@ -120,6 +145,7 @@ initialModel =
     , videoInModal = Nothing
     , textInModal = PendingLog
     , showingVideoInfo = Nothing
+    , config = Nothing
     }
 
 
@@ -142,7 +168,7 @@ fontAwesomeCDN =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( initialModel, getVideoList )
+    ( initialModel, Cmd.batch [ getVideoList, getConfig ] )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -268,6 +294,14 @@ update msg model =
         ShowVideoInfo id ->
             ( { model | showingVideoInfo = id }, Cmd.none )
 
+        GotConfigResponse res ->
+            case res of
+                Ok config ->
+                    ( { model | config = Just config }, Cmd.none )
+
+                Err e ->
+                    ( model, Cmd.none )
+
 
 getVideo : String -> List Video -> Maybe Video
 getVideo id videos =
@@ -386,6 +420,13 @@ getVideoList =
         }
 
 
+getConfig =
+    Http.get
+        { url = "/api/config"
+        , expect = Http.expectJson GotConfigResponse decodeConfig
+        }
+
+
 fromDefaultVideo id url =
     { defaultVideo | id = id, url = url }
 
@@ -398,6 +439,17 @@ decodeVideoList =
             (Decode.field "url" Decode.string)
         )
 
+decodeConfig : Decode.Decoder Config
+decodeConfig =
+    Decode.map8 Config
+        (Decode.field "title" Decode.string)
+        (Decode.field "message" Decode.string)
+        (Decode.field "action_info" Decode.bool)
+        (Decode.field "action_stdout" Decode.bool)
+        (Decode.field "action_stderr" Decode.bool)
+        (Decode.field "action_delete" Decode.bool)
+        (Decode.field "banner_background_color" Decode.string)
+        (Decode.field "banner_text_color" Decode.string)
 
 requestProgress id =
     Http.get
@@ -451,16 +503,29 @@ requestDownloadVideo url =
 
 view : Model -> Browser.Document Msg
 view model =
-    { title = "video-dl"
-    , body =
-        [ stylesheet
-        , fontAwesomeCDN
-        , videoModal model
-        , videoHeader model
-        , videoList model
-        , videoFooter
-        ]
-    }
+    case model.config of
+        Nothing ->
+            { title = "Loading..."
+            , body = [
+                div [ ]
+                    [ Loading.render
+                        BouncingBalls
+                        { defaultConfig | color = "#333" } -- Config
+                        Loading.On -- LoadingState
+                    ]
+                ]
+            }
+        Just config ->
+            { title = config.title 
+            , body =
+                [ stylesheet
+                , fontAwesomeCDN
+                , videoModal model
+                , videoHeader config model
+                , videoList config model
+                , videoFooter
+                ]
+            }
 
 
 videoModal : Model -> Html Msg
@@ -510,13 +575,14 @@ columnSizes =
     }
 
 
-videoHeader : Model -> Html Msg
-videoHeader model =
+videoHeader : Config -> Model -> Html Msg
+videoHeader config model =
     hero { heroModifiers | color = Info, size = Small }
-        []
+        [ style "background-color" config.bannerBackgroundColor
+        ]
         [ heroBody []
             [ container []
-                [ title H1 [] [ text "Video URL" ]
+                [ title H1 [ style "color" config.bannerTextColor ] [ text config.message ]
                 , columns columnsModifiers
                     []
                     [ column { columnModifiers | widths = columnSizes }
@@ -622,22 +688,30 @@ hover model video =
         ]
 
 
-videoToRow : Model -> Video -> Html Msg
-videoToRow model video =
+videoToRow : Config -> Model -> Video -> Html Msg
+videoToRow config model video =
     tableRow False
         []
         [ tableCell [] [ hover model video ]
         , tableCell [] [ easyProgress { progressModifiers | color = statusToColor video.status } [] (videoToProgress video) ]
-        , tableCell []
-            [ a
-                [ onMouseEnter (ShowVideoInfo (Just video.id))
-                , onMouseLeave (ShowVideoInfo Nothing)
-                ]
-                [ icon Standard [] [ i [ class "fa fa-info" ] [] ] ]
-            , a [ onClick (ViewStdOut video) ] [ icon Standard [] [ i [ class "fa fa-file-text-o" ] [] ] ]
-            , a [ onClick (ViewStdErr video) ] [ icon Standard [] [ i [ class "fa fa-file-text" ] [] ] ]
-            , a [ onClick (DeleteVideo video) ] [ icon Standard [] [ i [ class "fa fa-trash" ] [] ] ]
-            ]
+        , tableCell [] ([] ++
+        (if config.actionInfo
+         then [ a [ onMouseEnter (ShowVideoInfo (Just video.id))
+                  , onMouseLeave (ShowVideoInfo Nothing)
+                  ]
+                  [ icon Standard [] [ i [ class "fa fa-info" ] [] ] ]
+              ] 
+         else []) ++
+        (if config.actionStdout
+         then [ a [ onClick (ViewStdOut video) ] [ icon Standard [] [ i [ class "fa fa-file-text-o" ] [] ] ] ]
+         else []) ++
+        (if config.actionStderr
+         then [ a [ onClick (ViewStdErr video) ] [ icon Standard [] [ i [ class "fa fa-file-text" ] [] ] ] ]
+         else []) ++
+        (if config.actionDelete
+         then [ a [ onClick (DeleteVideo video) ] [ icon Standard [] [ i [ class "fa fa-trash" ] [] ] ] ]
+         else [])
+        )
         ]
 
 
@@ -650,8 +724,8 @@ videoToProgress video =
         1
 
 
-videoList : Model -> Html Msg
-videoList model =
+videoList : Config -> Model -> Html Msg
+videoList config model =
     let
         headerCells =
             [ tableCellHead [ style "width" "61.80%" ] [ text "Video" ]
@@ -673,7 +747,7 @@ videoList model =
                 [ tableHead []
                     [ tableRow False [] headerCells
                     ]
-                , tableBody [] (List.map (videoToRow model) model.videos)
+                , tableBody [] (List.map (videoToRow config model) model.videos)
                 , tableFoot []
                     [ tableRow False [] headerCells
                     ]

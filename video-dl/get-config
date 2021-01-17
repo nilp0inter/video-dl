@@ -1,0 +1,27 @@
+#!/bin/sh
+
+kapow set /response/headers/Content-Type application/json
+
+read -r -d '' TEMPLATE << 'EOM'
+{ title: $title
+, message: $message
+, action_info: $action_info
+, action_stdout: $action_stdout
+, action_stderr: $action_stderr
+, action_delete: $action_delete
+, banner_background_color: $banner_background_color
+, banner_text_color: $banner_text_color
+}
+EOM
+
+jq -n \
+   --arg title "${VIDEO_DL_TITLE:-video-dl}" \
+   --arg message "${VIDEO_DL_MESSAGE:-Video URL}" \
+   --argjson action_info "${VIDEO_DL_ACTION_INFO:-true}" \
+   --argjson action_stdout "${VIDEO_DL_ACTION_STDOUT:-true}" \
+   --argjson action_stderr "${VIDEO_DL_ACTION_STDERR:-true}" \
+   --argjson action_delete "${VIDEO_DL_ACTION_DELETE:-true}" \
+   --arg banner_background_color "${VIDEO_DL_BANNER_BACKGROUND_COLOR:-#209cee}" \
+   --arg banner_text_color "${VIDEO_DL_BANNER_TEXT_COLOR:-#ffffff}" \
+   "$TEMPLATE" \
+   | kapow set /response/body
