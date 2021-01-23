@@ -12,16 +12,16 @@ import Bulma.Layout exposing (..)
 import Bulma.Modifiers exposing (..)
 import Bulma.Modifiers.Typography exposing (textCentered)
 import Html.Events.Extra exposing (onEnter)
-import Html exposing (Attribute, Html, a, code, div, i, img, p, pre, strong, text)
+import Html exposing (Html, a, div, i, img, p, pre, strong, text)
 import Html.Attributes exposing (class, href, placeholder, rel, src, style, value)
-import Html.Events exposing (onClick, onInput, onMouseEnter, onMouseLeave, onMouseOver)
+import Html.Events exposing (onClick, onInput, onMouseEnter, onMouseLeave)
 import Http
 import Json.Decode as Decode
 import Maybe.Extra exposing (orElse)
 import Process
 import Task
 import Url
-import Loading exposing (LoaderType(..), defaultConfig, render)
+import Loading exposing (LoaderType(..), defaultConfig)
 
 
 type alias Model =
@@ -80,6 +80,7 @@ type alias Video =
     }
 
 
+defaultVideo : Video
 defaultVideo =
     { id = ""
     , url = ""
@@ -127,6 +128,7 @@ statusToColor videostatus =
         Pending ->
             Info
 
+initialConfig : Config
 initialConfig =
     { title = "video-dl"
     , message = "Video URL"
@@ -138,6 +140,7 @@ initialConfig =
     , bannerTextColor = "#ffffff"
     }
 
+initialModel : Model
 initialModel =
     { url = ""
     , videos = []
@@ -149,6 +152,7 @@ initialModel =
     }
 
 
+main : Program () Model Msg
 main =
     Browser.document
         { init = init
@@ -158,6 +162,7 @@ main =
         }
 
 
+fontAwesomeCDN : Html msg
 fontAwesomeCDN =
     Html.node "link"
         [ rel "stylesheet"
@@ -275,7 +280,7 @@ update msg model =
                 Err _ ->
                     ( model, Cmd.none )
 
-        GotStdOutResponse id res ->
+        GotStdOutResponse _ res ->
             case res of
                 Ok stdout ->
                     ( { model | textInModal = Log stdout }, Cmd.none )
@@ -283,7 +288,7 @@ update msg model =
                 Err _ ->
                     ( { model | textInModal = MissingLog }, Cmd.none )
 
-        GotStdErrResponse id res ->
+        GotStdErrResponse _ res ->
             case res of
                 Ok stderr ->
                     ( { model | textInModal = Log stderr }, Cmd.none )
@@ -299,7 +304,7 @@ update msg model =
                 Ok config ->
                     ( { model | config = Just config }, Cmd.none )
 
-                Err e ->
+                Err _ ->
                     ( model, Cmd.none )
 
 
