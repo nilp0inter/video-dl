@@ -13,7 +13,7 @@ import Bulma.Modifiers exposing (..)
 import Bulma.Modifiers.Typography exposing (textCentered)
 import Html.Events.Extra exposing (onEnter)
 import Html exposing (Html, a, div, i, img, p, pre, strong, text)
-import Html.Attributes exposing (class, href, placeholder, rel, src, style, value)
+import Html.Attributes exposing (class, href, placeholder, rel, src, style, value, target)
 import Html.Events exposing (onClick, onInput, onMouseEnter, onMouseLeave)
 import Http
 import Json.Decode as Decode
@@ -703,6 +703,8 @@ videoToRow config model video =
         (if config.actionInfo
          then [ a [ onMouseEnter (ShowVideoInfo (Just video.id))
                   , onMouseLeave (ShowVideoInfo Nothing)
+                  , href video.url
+                  , target "_blank"
                   ]
                   [ icon Standard [] [ i [ class "fa fa-info" ] [] ] ]
               ] 
